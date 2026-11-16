@@ -3,6 +3,7 @@ package com.mogomarket.app;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Context;
+import android.os.Build;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -338,24 +339,49 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
         holder.itemView.setOnClickListener(view -> showTradeDetailsDialog(ctx, stock));
         holder.itemView.setOnLongClickListener(view -> {
             PopupMenu popupMenu = new PopupMenu(ctx, view);
-            popupMenu.getMenu().add("Edit position").setOnMenuItemClickListener(item -> {
+            whiteIcon(ctx, popupMenu.getMenu().add("Edit position"), R.drawable.baseline_edit_24).setOnMenuItemClickListener(item -> {
                 showEditDialog(ctx, stock);
                 return true;
             });
-            popupMenu.getMenu().add("Close position").setOnMenuItemClickListener(item -> {
+            whiteIcon(ctx, popupMenu.getMenu().add("Close position"), R.drawable.baseline_close_24).setOnMenuItemClickListener(item -> {
                 showSellPriceDialog(ctx, stock);
                 return true;
             });
             if (listener.supportsTradeDetails()) {
-                popupMenu.getMenu().add("Manage screenshots").setOnMenuItemClickListener(item -> {
+                whiteIcon(ctx, popupMenu.getMenu().add("Manage screenshots"), R.drawable.ic_image_24).setOnMenuItemClickListener(item -> {
                     listener.onManageScreenshots(stock);
                     return true;
                 });
             }
+            showMenuIcons(popupMenu);
             popupMenu.show();
             return true;
         });
         updatePortfolioAllocations();
+    }
+
+    private static android.view.MenuItem whiteIcon(Context context, android.view.MenuItem item, int iconRes) {
+        android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat
+                .getDrawable(context, iconRes);
+        if (icon != null) {
+            icon = icon.mutate();
+            icon.setTint(android.graphics.Color.WHITE);
+            item.setIcon(icon);
+        }
+        return item;
+    }
+
+    private static void showMenuIcons(PopupMenu popupMenu) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            popupMenu.setForceShowIcon(true);
+            return;
+        }
+        try {
+            java.lang.reflect.Field field = PopupMenu.class.getDeclaredField("mPopup");
+            field.setAccessible(true);
+            Object helper = field.get(popupMenu);
+            helper.getClass().getMethod("setForceShowIcon", boolean.class).invoke(helper, true);
+        } catch (Exception ignored) { }
     }
 
     @Override

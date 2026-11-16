@@ -143,14 +143,19 @@
                 app:cornerRadius="14dp" />
         </LinearLayout>
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/watchlistRecyclerView"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:clipChildren="false">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/watchlistRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:clipToPadding="false"
             android:paddingTop="4dp"
-            android:paddingBottom="4dp"
+            android:paddingBottom="72dp"
             android:scrollbars="none" />
 
         <com.google.android.material.button.MaterialButton
@@ -158,7 +163,10 @@
             style="@style/Widget.Material3.Button.IconButton.Filled"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_marginEnd="8dp"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="12dp"
+            android:elevation="6dp"
             android:contentDescription="Open add stock"
             android:gravity="center"
             android:insetLeft="0dp"
@@ -173,5 +181,6 @@
             app:iconPadding="0dp"
             app:iconSize="24dp"
             app:iconTint="@color/watchlist_add_icon" />
+        </FrameLayout>
     </LinearLayout>
 </com.mogomarket.app.PullRefreshLayout>
