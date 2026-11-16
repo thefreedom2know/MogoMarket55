@@ -39,9 +39,9 @@ public class AssetAllocationChart extends View {
     public AssetAllocationChart(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         float density = getResources().getDisplayMetrics().density;
-        trackPaint.setColor(0x1AFFFFFF);
+        trackPaint.setColor((context.getColor(R.color.text_primary) & 0x00FFFFFF) | 0x1A000000);
         textPaint.setTextSize(11f * density);
-        textPaint.setColor(0xFFB8C2D1);
+        textPaint.setColor(context.getColor(R.color.text_secondary));
     }
 
     public void setAllocation(@Nullable Map<String, Double> allocation) {

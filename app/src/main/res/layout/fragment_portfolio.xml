@@ -8,7 +8,7 @@
         xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#07080B"
+        android:background="@color/pf_07080b"
         android:orientation="vertical"
         android:paddingHorizontal="12dp"
         android:paddingTop="10dp">
@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="190dp"
             android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="#0C1018"
+            app:cardBackgroundColor="@color/pf_0c1018"
             app:cardCornerRadius="22dp"
             app:cardElevation="0dp"
             app:strokeColor="#66FFB84D"
@@ -44,7 +44,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Portfolio Value"
-                        android:textColor="#63D7F2"
+                        android:textColor="@color/pf_63d7f2"
                         android:textSize="24sp"
                         android:textStyle="bold" />
 
@@ -56,7 +56,7 @@
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:text="$0.00"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/pf_ffffff"
                         android:textSize="36sp"
                         android:textStyle="bold" />
 
@@ -76,7 +76,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="$0.00"
-                            android:textColor="#FFB84D"
+                            android:textColor="@color/pf_ffb84d"
                             android:textSize="15sp"
                             android:textStyle="bold" />
 
@@ -85,7 +85,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="+0.00%"
-                            android:textColor="#FFD996"
+                            android:textColor="@color/pf_ffd996"
                             android:textSize="10sp"
                             android:visibility="gone" />
 
@@ -93,7 +93,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Total Profit"
-                            android:textColor="#FFD996"
+                            android:textColor="@color/pf_ffd996"
                             android:textSize="10sp" />
                     </LinearLayout>
                 </LinearLayout>
@@ -112,7 +112,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Open Positions"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/pf_ffffff"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -125,7 +125,7 @@
                 android:minHeight="0dp"
                 android:paddingHorizontal="8dp"
                 android:text="Shared"
-                android:textColor="#8FDFF0"
+                android:textColor="@color/pf_8fdff0"
                 android:textSize="11sp" />
 
             <LinearLayout
@@ -144,7 +144,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Details"
-                    android:textColor="#8D9AAE"
+                    android:textColor="@color/pf_8d9aae"
                     android:textSize="11sp" />
 
                 <ImageView
@@ -153,7 +153,7 @@
                     android:layout_height="24dp"
                     android:contentDescription="Show portfolio details"
                     android:src="@drawable/ic_arrow_drop_down_24"
-                    android:tint="#8D9AAE" />
+                    android:tint="@color/pf_8d9aae" />
             </LinearLayout>
         </LinearLayout>
 
@@ -185,7 +185,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Today"
-                        android:textColor="#FF7279"
+                        android:textColor="@color/pf_ff7279"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
@@ -195,7 +195,7 @@
                         android:layout_height="wrap_content"
                         android:maxLines="1"
                         android:text="$0.00"
-                        android:textColor="#FF7279"
+                        android:textColor="@color/pf_ff7279"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
@@ -221,7 +221,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0 Open"
-                        android:textColor="#A8DDF0"
+                        android:textColor="@color/pf_a8ddf0"
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
@@ -229,7 +229,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Positions"
-                        android:textColor="#A8DDF0"
+                        android:textColor="@color/pf_a8ddf0"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -247,7 +247,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Cash"
-                        android:textColor="#E6DDF4"
+                        android:textColor="@color/pf_e6ddf4"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
@@ -258,7 +258,7 @@
                         android:contentDescription="Cash balance. Long press to edit"
                         android:longClickable="true"
                         android:text="$0.00"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/pf_ffffff"
                         android:textSize="13sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -277,7 +277,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Invested"
-                        android:textColor="#E6DDF4"
+                        android:textColor="@color/pf_e6ddf4"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
@@ -288,7 +288,7 @@
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:text="$0.00"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/pf_ffffff"
                         android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -300,7 +300,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="10dp"
                 android:visibility="gone"
-                app:cardBackgroundColor="#21171A"
+                app:cardBackgroundColor="@color/pf_21171a"
                 app:cardCornerRadius="18dp"
                 app:cardElevation="0dp"
                 app:strokeColor="#99FF755E"
@@ -319,7 +319,7 @@
                         android:layout_height="32dp"
                         android:contentDescription="Concentration risk warning"
                         android:src="@android:drawable/ic_dialog_alert"
-                        android:tint="#FFF3D2" />
+                        android:tint="@color/pf_fff3d2" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -332,7 +332,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Concentration Risk"
-                            android:textColor="#FFFFFF"
+                            android:textColor="@color/pf_ffffff"
                             android:textSize="15sp"
                             android:textStyle="bold" />
 
@@ -340,7 +340,7 @@
                             android:id="@+id/tvConcentrationAlert"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:textColor="#FFF1E8"
+                            android:textColor="@color/pf_fff1e8"
                             android:textSize="12sp" />
                     </LinearLayout>
 
@@ -369,7 +369,7 @@
                 android:layout_height="wrap_content"
                 android:paddingBottom="2dp"
                 android:text="Portfolio beta vs. S&amp;P 500: calculating"
-                android:textColor="#657184"
+                android:textColor="@color/pf_657184"
                 android:textSize="10sp" />
         </LinearLayout>
 
@@ -409,14 +409,14 @@
                     android:insetTop="0dp"
                     android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    app:backgroundTint="#1E2A3A"
+                    app:backgroundTint="@color/pf_1e2a3a"
                     app:cornerRadius="12dp"
                     app:icon="@android:drawable/ic_menu_share"
                     android:padding="0dp"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
                     app:iconSize="18dp"
-                    app:iconTint="#4DA3FF" />
+                    app:iconTint="@color/pf_4da3ff" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
@@ -429,7 +429,7 @@
                 android:insetTop="0dp"
                 android:insetRight="0dp"
                 android:insetBottom="0dp"
-                app:backgroundTint="#FFB84D"
+                app:backgroundTint="@color/pf_ffb84d"
                 app:cornerRadius="27dp"
                 android:padding="0dp"
                 app:icon="@drawable/ic_add_24"

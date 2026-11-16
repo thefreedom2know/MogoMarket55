@@ -48,11 +48,12 @@ public class PortfolioHeroChartView extends View {
         if (w <= 0 || h <= 0) return;
         float step = (float) w / (POINTS.length - 1);
         float prevX = 0f;
-        float prevY = POINTS[0] * h;
+        float top = 0.2f * h; // keep the upper part of the card free
+        float prevY = top + POINTS[0] * (h - top);
         line.moveTo(prevX, prevY);
         for (int i = 1; i < POINTS.length; i++) {
             float cx = i * step;
-            float cy = POINTS[i] * h;
+            float cy = top + POINTS[i] * (h - top);
             float mid = (prevX + cx) / 2f;
             line.cubicTo(mid, prevY, mid, cy, cx, cy);
             prevX = cx;

@@ -62,4 +62,30 @@
     <color name="chart_tf_unselected">#E8DFD2</color>
     <color name="chart_tf_text">#42545A</color>
 
+
+    <!-- Portfolio screen palette -->
+    <color name="pf_07080b">#F0F4F8</color>
+    <color name="pf_0c1018">#FFF6E0</color>
+    <color name="pf_0b0f16">#FFFFFF</color>
+    <color name="pf_63d7f2">#0E7490</color>
+    <color name="pf_ffffff">#111827</color>
+    <color name="pf_ffb84d">#D97706</color>
+    <color name="pf_ffd996">#92400E</color>
+    <color name="pf_8d9aae">#5B6678</color>
+    <color name="pf_ff7279">#DC2626</color>
+    <color name="pf_a8ddf0">#0E7490</color>
+    <color name="pf_e6ddf4">#4B5563</color>
+    <color name="pf_21171a">#FDECEC</color>
+    <color name="pf_fff3d2">#92400E</color>
+    <color name="pf_fff1e8">#7F1D1D</color>
+    <color name="pf_657184">#64748B</color>
+    <color name="pf_1e2a3a">#E2E8F0</color>
+    <color name="pf_4da3ff">#1D6FD6</color>
+    <color name="pf_22d3ee">#0891B2</color>
+    <color name="pf_3322d3ee">#330891B2</color>
+    <color name="pf_1fffffff">#1F000000</color>
+    <color name="pf_8fdff0">#0E7490</color>
+    <color name="pf_34d399">#059669</color>
+    <color name="pf_overlay_start">#33FFF6E0</color>
+    <color name="pf_overlay_end">#66FFF6E0</color>
 </resources>

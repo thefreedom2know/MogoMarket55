@@ -32,12 +32,12 @@ public class PortfolioAllocationRingView extends View {
         float density = getResources().getDisplayMetrics().density;
         trackPaint.setStyle(Paint.Style.STROKE);
         trackPaint.setStrokeWidth(6f * density);
-        trackPaint.setColor(0x33FFFFFF);
+        trackPaint.setColor((context.getColor(R.color.text_primary) & 0x00FFFFFF) | 0x33000000);
         arcPaint.setStyle(Paint.Style.STROKE);
         arcPaint.setStrokeWidth(6f * density);
         arcPaint.setStrokeCap(Paint.Cap.ROUND);
         arcPaint.setColor(0xFFFFB84D);
-        textPaint.setColor(0xFFFFFFFF);
+        textPaint.setColor(context.getColor(R.color.text_primary));
         textPaint.setTextAlign(Paint.Align.CENTER);
         textPaint.setTextSize(12f * density);
         textPaint.setFakeBoldText(true);

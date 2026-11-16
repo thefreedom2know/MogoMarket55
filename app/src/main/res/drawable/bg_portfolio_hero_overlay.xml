@@ -3,7 +3,7 @@
     <gradient
         android:type="linear"
         android:angle="270"
-        android:startColor="#330B121E"
-        android:endColor="#590B121E" />
+        android:startColor="@color/pf_overlay_start"
+        android:endColor="@color/pf_overlay_end" />
     <corners android:radius="20dp" />
 </shape>

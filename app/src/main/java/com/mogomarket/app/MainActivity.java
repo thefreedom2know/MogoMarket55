@@ -164,6 +164,14 @@ public class MainActivity extends AppCompatActivity {
             {"Simulator", "Practice trading with simulated positions - no real money involved."},
             {"Settings", "Customize the theme, chart defaults, notifications and the daily summary email."}
     };
+    private static final String[][] GUIDE_STEPS_HE = {
+            {"גרף", "צפה במחירים חיים בנרות או בקו, בחר טווח זמן, הוסף ווליום או ממוצע נע ל-150 יום, ולחיצה ארוכה על הגרף פותחת קו הצלבה. משוך למטה כדי לרענן."},
+            {"פורטפוליו", "הפוזיציות הפתוחות שלך עם רווח/הפסד באחוזים ובדולרים, השינוי של היום ומשקל כל פוזיציה בתיק. הפלוס הצהוב מוסיף עסקה (או מייבא אותה מצילום מסך), והמחשבון עוזר לקבוע גודל פוזיציה."},
+            {"רשימת מעקב", "עקוב אחרי המניות שחשובות לך עם גרף קטן (ירוק = עלייה היום, אדום = ירידה), מחירי טרום ואחרי מסחר והתראות מחיר."},
+            {"עסקאות", "עסקאות סגורות עם התוצאות, ניתוחים והיסטוריה, כדי ללמוד מהחלטות קודמות."},
+            {"סימולטור", "תרגל מסחר עם פוזיציות מדומות, בלי כסף אמיתי."},
+            {"הגדרות", "התאמת ערכת הנושא, ברירות מחדל של הגרף, התראות ומייל סיכום יומי."}
+    };
     private static final int[] GUIDE_BUTTON_IDS = {
             R.id.nav_chart_button, R.id.nav_portfolio_button, R.id.nav_watchlist_button,
             R.id.nav_trades_button, R.id.nav_simulator_button, R.id.nav_settings_button
@@ -171,10 +179,17 @@ public class MainActivity extends AppCompatActivity {
 
     /** Walks through every page of the app, explaining each one while it is on screen. */
     private void showFirstRunGuide(SharedPreferences preferences) {
-        showGuideStep(preferences, 0);
+        new AlertDialog.Builder(this)
+                .setTitle("Language / שפה")
+                .setMessage("In which language should the tour be? / באיזו שפה להציג את ההסבר?")
+                .setPositiveButton("English", (d, w) -> showGuideStep(preferences, 0, false))
+                .setNegativeButton("עברית", (d, w) -> showGuideStep(preferences, 0, true))
+                .setCancelable(false)
+                .show();
     }
 
-    private void showGuideStep(SharedPreferences preferences, int step) {
+    private void showGuideStep(SharedPreferences preferences, int step, boolean hebrew) {
+        String[][] steps = hebrew ? GUIDE_STEPS_HE : GUIDE_STEPS;
         View button = findViewById(GUIDE_BUTTON_IDS[step]);
         if (button != null) button.performClick();
 
@@ -185,36 +200,43 @@ public class MainActivity extends AppCompatActivity {
         content.setPadding(padding, padding, padding, Math.round(8 * density));
 
         TextView counter = new TextView(this);
-        counter.setText("Step " + (step + 1) + " of " + GUIDE_STEPS.length);
+        counter.setText(hebrew ? "שלב " + (step + 1) + " מתוך " + steps.length
+                : "Step " + (step + 1) + " of " + steps.length);
         counter.setTextSize(12f);
         counter.setTextColor(0xFFFFB84D);
         content.addView(counter);
 
         TextView title = new TextView(this);
-        title.setText(GUIDE_STEPS[step][0]);
+        title.setText(steps[step][0]);
         title.setTextSize(22f);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         content.addView(title);
 
         TextView body = new TextView(this);
-        body.setText(GUIDE_STEPS[step][1]);
+        body.setText(steps[step][1]);
         body.setTextSize(15f);
         LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         bodyParams.topMargin = Math.round(8 * density);
         content.addView(body, bodyParams);
 
-        boolean last = step == GUIDE_STEPS.length - 1;
+        if (hebrew) {
+            for (TextView t : new TextView[]{counter, title, body}) {
+                t.setTextDirection(View.TEXT_DIRECTION_RTL);
+                t.setGravity(android.view.Gravity.RIGHT);
+            }
+        }
+        boolean last = step == steps.length - 1;
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(content)
-                .setPositiveButton(last ? "Get started" : "Next", (d, which) -> {
+                .setPositiveButton(last ? (hebrew ? "בואו נתחיל" : "Get started") : (hebrew ? "הבא" : "Next"), (d, which) -> {
                     if (last) {
                         finishFirstRunGuide(preferences);
                     } else {
-                        showGuideStep(preferences, step + 1);
+                        showGuideStep(preferences, step + 1, hebrew);
                     }
                 })
-                .setNegativeButton(last ? null : "Skip", (d, which) -> finishFirstRunGuide(preferences))
+                .setNegativeButton(last ? null : (hebrew ? "דלג" : "Skip"), (d, which) -> finishFirstRunGuide(preferences))
                 .setCancelable(false)
                 .create();
         dialog.setOnShowListener(ignored -> {

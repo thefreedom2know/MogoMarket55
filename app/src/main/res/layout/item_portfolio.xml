@@ -7,10 +7,10 @@
     android:layout_marginHorizontal="5dp"
     android:layout_marginVertical="5dp"
     android:contentDescription="Portfolio position. Tap to view chart, long press for actions"
-    app:cardBackgroundColor="#0B0F16"
+    app:cardBackgroundColor="@color/pf_0b0f16"
     app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
-    app:strokeColor="#3322D3EE"
+    app:strokeColor="@color/pf_3322d3ee"
     app:strokeWidth="1dp">
 
     <FrameLayout
@@ -48,7 +48,7 @@
                     android:ellipsize="end"
                     android:gravity="center_vertical"
                     android:maxLines="1"
-                    android:textColor="#22D3EE"
+                    android:textColor="@color/pf_22d3ee"
                     android:textSize="36sp"
                     android:textStyle="bold" />
 
@@ -83,7 +83,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="P/L"
-                    android:textColor="#22D3EE"
+                    android:textColor="@color/pf_22d3ee"
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
@@ -95,7 +95,7 @@
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textColor="#34D399"
+                    android:textColor="@color/pf_34d399"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -107,7 +107,7 @@
                     android:contentDescription="Trade duration. Tap to set the open date"
                     android:gravity="end"
                     android:maxLines="1"
-                    android:textColor="#8D9AAE"
+                    android:textColor="@color/pf_8d9aae"
                     android:textSize="10sp" />
             </LinearLayout>
 
@@ -124,7 +124,7 @@
                     android:layout_height="wrap_content"
                     android:contentDescription="Change since entry"
                     android:maxLines="1"
-                    android:textColor="#34D399"
+                    android:textColor="@color/pf_34d399"
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
@@ -138,7 +138,7 @@
                     android:ellipsize="end"
                     android:gravity="end"
                     android:maxLines="1"
-                    android:textColor="#8D9AAE"
+                    android:textColor="@color/pf_8d9aae"
                     android:textSize="11sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -148,7 +148,7 @@
                 android:layout_height="1dp"
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="9dp"
-                android:background="#1FFFFFFF" />
+                android:background="@color/pf_1fffffff" />
 
             <LinearLayout
                 android:id="@+id/layoutInvested"
