@@ -1238,14 +1238,26 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         volumeColorByOpen = !volumeColorByOpen;
         requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit().putBoolean("chart_volume_color_open", volumeColorByOpen).apply();
-        if (!currentEntries.isEmpty() && isCandleStick) updateCandleChart(currentEntries);
+        refreshCandlesSafely();
     }
 
     private void toggleVolume() {
         showVolume = !showVolume;
         requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit().putBoolean("chart_show_volume", showVolume).apply();
-        if (!currentEntries.isEmpty() && isCandleStick) updateCandleChart(currentEntries);
+        refreshCandlesSafely();
+    }
+
+    private void refreshCandlesSafely() {
+        if (currentEntries.isEmpty() || !isCandleStick) return;
+        try {
+            updateCandleChart(currentEntries);
+        } catch (Exception e) {
+            Log.e("ChartFragment", "Volume refresh failed", e);
+            if (getContext() != null) {
+                Toast.makeText(getContext(), "Volume error: " + e, Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void toggleMa150() {
@@ -1412,46 +1424,37 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             LineDataSet averageSet = createMovingAverageDataSet();
             combinedData.setData(new LineData(averageSet));
         }
-        boolean volumeShown = false;
-        if (showVolume && currentVolumes.size() == entries.size() && !entries.isEmpty()) {
-            List<BarEntry> bars = new ArrayList<>();
-            int[] barColors = new int[entries.size()];
-            float maxVolume = 0f;
-            for (int i = 0; i < entries.size(); i++) {
-                float v = Math.max(0f, currentVolumes.get(i));
-                maxVolume = Math.max(maxVolume, v);
-                bars.add(new BarEntry(entries.get(i).getX(), v));
-                float reference = volumeColorByOpen || i == 0
-                        ? entries.get(i).getOpen() : entries.get(i - 1).getClose();
-                boolean up = entries.get(i).getClose() >= reference;
-                barColors[i] = (up ? COLOR_GAIN : COLOR_LOSS) & 0x00FFFFFF | 0x66000000;
-            }
-            if (maxVolume > 0f) {
-                BarDataSet volumeSet = new BarDataSet(bars, "Volume");
-                volumeSet.setColors(barColors);
-                volumeSet.setDrawValues(false);
-                volumeSet.setHighlightEnabled(false);
-                volumeSet.setAxisDependency(com.github.mikephil.charting.components.YAxis.AxisDependency.RIGHT);
-                BarData barData = new BarData(volumeSet);
-                barData.setBarWidth(0.8f);
-                combinedData.setData(barData);
-                com.github.mikephil.charting.components.YAxis right = candleStickChart.getAxisRight();
-                right.setAxisMinimum(0f);
-                right.setAxisMaximum(maxVolume * 4.5f); // bars stay in the bottom ~22%
-                volumeShown = true;
-            }
+        // The volume series is always part of the data and only hidden when switched off,
+        // so toggling it never changes the chart's structure (renderers / draw order).
+        boolean hasVolume = currentVolumes.size() == entries.size() && !entries.isEmpty();
+        List<BarEntry> bars = new ArrayList<>();
+        int[] barColors = new int[Math.max(1, entries.size())];
+        float maxVolume = 0f;
+        for (int i = 0; i < entries.size(); i++) {
+            float v = hasVolume ? Math.max(0f, currentVolumes.get(i)) : 0f;
+            maxVolume = Math.max(maxVolume, v);
+            bars.add(new BarEntry(entries.get(i).getX(), v));
+            float reference = volumeColorByOpen || i == 0
+                    ? entries.get(i).getOpen() : entries.get(i - 1).getClose();
+            boolean up = entries.get(i).getClose() >= reference;
+            barColors[i] = ((up ? COLOR_GAIN : COLOR_LOSS) & 0x00FFFFFF) | 0x66000000;
         }
-        if (!volumeShown) {
-            candleStickChart.getAxisRight().resetAxisMinimum();
-            candleStickChart.getAxisRight().resetAxisMaximum();
-        }
-        candleStickChart.setDrawOrder(volumeShown
-                ? (movingAverageEntries.isEmpty()
-                    ? new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE}
-                    : new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE})
-                : (movingAverageEntries.isEmpty()
-                    ? new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.CANDLE}
-                    : new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE}));
+        if (bars.isEmpty()) bars.add(new BarEntry(0f, 0f));
+        BarDataSet volumeSet = new BarDataSet(bars, "Volume");
+        volumeSet.setColors(barColors);
+        volumeSet.setDrawValues(false);
+        volumeSet.setHighlightEnabled(false);
+        volumeSet.setVisible(showVolume && maxVolume > 0f);
+        volumeSet.setAxisDependency(com.github.mikephil.charting.components.YAxis.AxisDependency.RIGHT);
+        BarData barData = new BarData(volumeSet);
+        barData.setBarWidth(0.8f);
+        combinedData.setData(barData);
+        com.github.mikephil.charting.components.YAxis right = candleStickChart.getAxisRight();
+        right.setAxisMinimum(0f);
+        right.setAxisMaximum(maxVolume > 0f ? maxVolume * 4.5f : 1f); // bars use the bottom ~22%
+        candleStickChart.setDrawOrder(movingAverageEntries.isEmpty()
+                ? new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE}
+                : new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE});
         candleStickChart.setData(combinedData);
         candleStickChart.getLegend().setEnabled(showMa150 && !movingAverageEntries.isEmpty());
         candleStickChart.getLegend().setEnabled(showMa150 && !movingAverageEntries.isEmpty());

@@ -33,10 +33,10 @@ public class PortfolioHeroChartView extends View {
     public PortfolioHeroChartView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         linePaint.setStyle(Paint.Style.STROKE);
-        linePaint.setStrokeWidth(3f * getResources().getDisplayMetrics().density);
+        linePaint.setStrokeWidth(4f * getResources().getDisplayMetrics().density);
         linePaint.setStrokeCap(Paint.Cap.ROUND);
         linePaint.setStrokeJoin(Paint.Join.ROUND);
-        linePaint.setColor(0xFFFFB84D);
+        linePaint.setColor(0xFFFFE27A);
         fillPaint.setStyle(Paint.Style.FILL);
     }
 
@@ -63,7 +63,7 @@ public class PortfolioHeroChartView extends View {
         fill.lineTo(0, h);
         fill.close();
         fillPaint.setShader(new LinearGradient(0, 0, 0, h,
-                0xAAFFB84D, 0x10FFB84D, Shader.TileMode.CLAMP));
+                0xF2FFC21A, 0x66E08A00, Shader.TileMode.CLAMP));
     }
 
     @Override
