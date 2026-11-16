@@ -60,7 +60,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
 
             ndk {
-                debugSymbolLevel = "SYMBOL_TABLE"
+                debugSymbolLevel = "FULL"
             }
 
             proguardFiles(
@@ -68,6 +68,11 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     compileOptions {
