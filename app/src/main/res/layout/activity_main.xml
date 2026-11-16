@@ -30,6 +30,7 @@
             android:elevation="8dp" />
 
         <LinearLayout
+            android:id="@+id/navigation_dock_row"
             android:layout_width="match_parent"
             android:layout_height="64dp"
             android:layout_gravity="center"

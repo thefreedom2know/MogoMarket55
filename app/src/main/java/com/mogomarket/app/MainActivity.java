@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -23,6 +24,9 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.NavOptions;
 import androidx.navigation.fragment.NavHostFragment;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -138,9 +142,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // Outer buttons follow the rounded ends of the dock so the selection never leaves it.
-        buttons[0].setBackgroundResource(R.drawable.bg_nav_dock_item_left);
-        buttons[buttons.length - 1].setBackgroundResource(R.drawable.bg_nav_dock_item_right);
+        setupDockReordering(buttons);
 
         navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
             for (int i = 0; i < buttons.length; i++) {
@@ -178,6 +180,113 @@ public class MainActivity extends AppCompatActivity {
     };
 
     /** Walks through every page of the app, explaining each one while it is on screen. */
+    private static final String KEY_DOCK_ORDER = "dock_order";
+
+    /** Lets the user long-press a dock icon and drag it to a new place; the order is saved. */
+    private void setupDockReordering(View[] buttons) {
+        LinearLayout row = findViewById(R.id.navigation_dock_row);
+        if (row == null) return;
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+
+        // Restore the saved order.
+        String saved = prefs.getString(KEY_DOCK_ORDER, "");
+        if (!saved.isEmpty()) {
+            String[] parts = saved.split(",");
+            if (parts.length == buttons.length) {
+                boolean[] used = new boolean[buttons.length];
+                List<View> ordered = new ArrayList<>();
+                for (String part : parts) {
+                    try {
+                        int index = Integer.parseInt(part.trim());
+                        if (index >= 0 && index < buttons.length && !used[index]) {
+                            used[index] = true;
+                            ordered.add(buttons[index]);
+                        }
+                    } catch (NumberFormatException ignored) { }
+                }
+                if (ordered.size() == buttons.length) {
+                    row.removeAllViews();
+                    for (View v : ordered) {
+                        row.addView(v);
+                    }
+                }
+            }
+        }
+        updateDockEdgeBackgrounds(row);
+
+        final float[] dragState = new float[3]; // startRawX, grabOffset (px from item left), active
+        for (View button : buttons) {
+            button.setOnLongClickListener(view -> {
+                int[] rowLocation = new int[2];
+                row.getLocationOnScreen(rowLocation);
+                dragState[1] = dragState[0] - rowLocation[0] - view.getLeft();
+                dragState[2] = 1f;
+                view.setPressed(false);
+                view.setElevation(24f);
+                view.animate().scaleX(1.12f).scaleY(1.12f).setDuration(120).start();
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                row.requestDisallowInterceptTouchEvent(true);
+                return true;
+            });
+            button.setOnTouchListener((view, event) -> {
+                int action = event.getActionMasked();
+                if (action == MotionEvent.ACTION_DOWN) {
+                    dragState[0] = event.getRawX();
+                    dragState[2] = 0f;
+                    return false;
+                }
+                if (dragState[2] != 1f) return false;
+                if (action == MotionEvent.ACTION_MOVE) {
+                    int count = row.getChildCount();
+                    float itemWidth = (float) row.getWidth() / count;
+                    int[] rowLocation = new int[2];
+                    row.getLocationOnScreen(rowLocation);
+                    float desiredLeft = event.getRawX() - rowLocation[0] - dragState[1];
+                    desiredLeft = Math.max(0f, Math.min(desiredLeft, row.getWidth() - itemWidth));
+                    int target = Math.max(0, Math.min(count - 1,
+                            Math.round(desiredLeft / itemWidth)));
+                    int current = row.indexOfChild(view);
+                    if (target != current) {
+                        row.removeView(view);
+                        row.addView(view, target);
+                        updateDockEdgeBackgrounds(row);
+                        current = target;
+                    }
+                    view.setTranslationX(desiredLeft - current * itemWidth);
+                    return true;
+                }
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    dragState[2] = 0f;
+                    view.animate().translationX(0f).scaleX(1f).scaleY(1f).setDuration(160)
+                            .withEndAction(() -> view.setElevation(0f)).start();
+                    StringBuilder order = new StringBuilder();
+                    for (int i = 0; i < row.getChildCount(); i++) {
+                        for (int b = 0; b < buttons.length; b++) {
+                            if (buttons[b] == row.getChildAt(i)) {
+                                if (order.length() > 0) order.append(',');
+                                order.append(b);
+                            }
+                        }
+                    }
+                    prefs.edit().putString(KEY_DOCK_ORDER, order.toString()).apply();
+                    return true;
+                }
+                return true;
+            });
+        }
+    }
+
+    /** The outer items follow the rounded ends of the dock so the selection never leaves it. */
+    private void updateDockEdgeBackgrounds(LinearLayout row) {
+        int count = row.getChildCount();
+        for (int i = 0; i < count; i++) {
+            int background = i == 0 ? R.drawable.bg_nav_dock_item_left
+                    : i == count - 1 ? R.drawable.bg_nav_dock_item_right
+                    : R.drawable.bg_nav_dock_item;
+            row.getChildAt(i).setBackgroundResource(background);
+        }
+    }
+
     private void showFirstRunGuide(SharedPreferences preferences) {
         new AlertDialog.Builder(this)
                 .setTitle("Language / שפה")
