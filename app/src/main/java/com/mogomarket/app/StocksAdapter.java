@@ -727,11 +727,11 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
             String dailyDollarSign = dailyPnlDollar >= 0 ? "+" : "-";
             String dailyText;
             if (stock.tradeAmount > 0) {
-                dailyText = String.format(Locale.US, "%s%.2f%% (%s$%.2f) Today",
+                dailyText = String.format(Locale.US, "1D %s%.2f%% (%s$%.2f)",
                         dailySign, Math.abs(dailyChangePercent),
                         dailyDollarSign, Math.abs(dailyPnlDollar));
             } else {
-                dailyText = String.format(Locale.US, "%s%.2f%% Today",
+                dailyText = String.format(Locale.US, "1D %s%.2f%%",
                         dailySign, Math.abs(dailyChangePercent));
             }
             holder.itemView.post(() -> {
