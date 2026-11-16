@@ -55,7 +55,7 @@ public class MissedProfitLossFetcher {
             callback.onFetched(null, true);
             return;
         }
-        String url = "https://query1.finance.yahoo.com/v8/finance/chart/"
+        String url = ApiConfig.YAHOO_CHART
                 + URLEncoder.encode(symbol, StandardCharsets.UTF_8).replace("+", "%20")
                 + "?interval=1d&range=1y&includePrePost=false";
         CLIENT.newCall(new Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build())

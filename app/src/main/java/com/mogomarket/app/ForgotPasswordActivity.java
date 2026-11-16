@@ -31,8 +31,8 @@ import javax.mail.internet.MimeMessage;
 public class ForgotPasswordActivity extends AppCompatActivity {
 
     private static final String TAG           = "ForgotPassword";
-    private static final String SMTP_EMAIL    = BuildConfig.SMTP_EMAIL;
-    private static final String SMTP_PASSWORD = BuildConfig.SMTP_PASSWORD;
+    private static final String SMTP_EMAIL    = ApiConfig.smtpEmail();
+    private static final String SMTP_PASSWORD = ApiConfig.smtpPassword();
 
     private EditText    editTextEmail;
     private Button      btnSendReset;

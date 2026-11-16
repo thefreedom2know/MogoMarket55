@@ -157,12 +157,12 @@ public class StocksFragment extends Fragment implements StocksAdapter.OnStockCli
 
         if (isCrypto) {
             String pair = CryptoHelper.getPair(cleanSymbol);
-            url = "https://api.binance.com/api/v3/ticker/24hr?symbol=" + pair;
+            url = ApiConfig.BINANCE_24H + pair;
         } else if (isForex) {
             String forexSymbol = "OANDA:" + cleanSymbol.replace("/", "_");
-            url = "https://finnhub.io/api/v1/quote?symbol=" + forexSymbol + "&token=" + API_KEY;
+            url = ApiConfig.FINNHUB_QUOTE + forexSymbol + "&token=" + API_KEY;
         } else {
-            url = "https://finnhub.io/api/v1/quote?symbol=" + cleanSymbol + "&token=" + API_KEY;
+            url = ApiConfig.FINNHUB_QUOTE + cleanSymbol + "&token=" + API_KEY;
         }
 
         Request request = new Request.Builder().url(url).build();

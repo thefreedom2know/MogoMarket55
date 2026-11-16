@@ -410,7 +410,7 @@ public class TickerSearchSheet extends BottomSheetDialogFragment {
     private void fetchFinnhubStocks(String query, SearchAccumulator accumulator) {
         try {
             String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name());
-            String url = "https://finnhub.io/api/v1/search?q=" + encoded + "&token=" + FINNHUB_KEY;
+            String url = ApiConfig.FINNHUB_SEARCH + encoded + "&token=" + FINNHUB_KEY;
             Request req = new Request.Builder().url(url).build();
 
             client.newCall(req).enqueue(new Callback() {
@@ -462,7 +462,7 @@ public class TickerSearchSheet extends BottomSheetDialogFragment {
     private void fetchYahooStocks(String query, SearchAccumulator accumulator) {
         try {
             String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name());
-            String url = "https://query1.finance.yahoo.com/v1/finance/search?q=" + encoded
+            String url = ApiConfig.YAHOO_SEARCH + encoded
                     + "&quotesCount=25&newsCount=0";
             Request request = new Request.Builder()
                     .url(url)
@@ -716,7 +716,7 @@ public class TickerSearchSheet extends BottomSheetDialogFragment {
             try {
                 String encoded = URLEncoder.encode(yahooSymbol, StandardCharsets.UTF_8.name());
                 Request request = new Request.Builder()
-                        .url("https://query1.finance.yahoo.com/v8/finance/chart/" + encoded
+                        .url(ApiConfig.YAHOO_CHART + encoded
                                 + "?range=5d&interval=1d&includePrePost=false")
                         .header("User-Agent", "Mozilla/5.0")
                         .build();

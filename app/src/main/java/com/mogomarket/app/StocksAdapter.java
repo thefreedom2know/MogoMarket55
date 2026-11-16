@@ -277,7 +277,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
 
         if (!CryptoHelper.isCryptoSymbol(sym)) {
             holder.stockLogoBackground.setImageBitmap(null);
-            String logoUrl = "https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/" + sym + ".png";
+            String logoUrl = ApiConfig.FINNHUB_LOGO + sym + ".png";
             Request logoRequest = new Request.Builder().url(logoUrl).build();
             client.newCall(logoRequest).enqueue(new Callback() {
                 @Override
@@ -520,7 +520,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
                                   int colorGain, int colorLoss, int textPrimary,
                                   int textSecondary, int colorNeutral) {
         String pair = CryptoHelper.getPair(symbol);
-        String urlTicker = "https://api.binance.com/api/v3/ticker/24hr?symbol=" + pair;
+        String urlTicker = ApiConfig.BINANCE_24H + pair;
         client.newCall(new Request.Builder().url(urlTicker).build()).enqueue(new Callback() {
             @Override public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 holder.currentPriceText.post(() -> { holder.currentPriceText.setText("?"); holder.currentPriceText.setTextColor(colorNeutral); });
@@ -551,15 +551,15 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
                     textPrimary, textSecondary, colorNeutral);
             return;
         }
-        if (BuildConfig.FINNHUB_KEY == null || BuildConfig.FINNHUB_KEY.trim().isEmpty()) {
+        if (ApiConfig.finnhubKey() == null || ApiConfig.finnhubKey().trim().isEmpty()) {
             // No Finnhub key configured: use the free Yahoo chart API instead.
             fetchYahooQuote(symbol, stock, holder, colorGain, colorLoss,
                     textPrimary, textSecondary, colorNeutral);
             return;
         }
         String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
-        String url = "https://finnhub.io/api/v1/quote?symbol=" + encodedSymbol
-                + "&token=" + BuildConfig.FINNHUB_KEY;
+        String url = ApiConfig.FINNHUB_QUOTE + encodedSymbol
+                + "&token=" + ApiConfig.finnhubKey();
         client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
             @Override public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 holder.currentPriceText.post(() -> { holder.currentPriceText.setText("?"); holder.currentPriceText.setTextColor(colorNeutral); });
@@ -604,7 +604,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
                                  int colorGain, int colorLoss, int textPrimary,
                                  int textSecondary, int colorNeutral) {
         String encodedSymbol = URLEncoder.encode(yahooSymbol, StandardCharsets.UTF_8);
-        String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodedSymbol
+        String url = ApiConfig.YAHOO_CHART + encodedSymbol
                 + "?range=5d&interval=1d&includePrePost=false";
         client.newCall(new Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build())
                 .enqueue(new Callback() {

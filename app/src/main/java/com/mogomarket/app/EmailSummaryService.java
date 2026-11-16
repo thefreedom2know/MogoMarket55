@@ -62,18 +62,18 @@ public class EmailSummaryService extends BroadcastReceiver {
     private static final int RC_WEEKLY = 2002;
 
     // ── EmailJS credentials ───────────────────────────────────────────────────
-    private static final String EMAILJS_URL          = "https://api.emailjs.com/api/v1.0/email/send";
+    private static final String EMAILJS_URL          = ApiConfig.EMAILJS_SEND;
     private static final String EMAILJS_SERVICE_ID   = "YOUR_SERVICE_ID";          // ← שנה
     private static final String EMAILJS_USER_ID      = "YOUR_PUBLIC_KEY";          // ← שנה
     private static final String EMAILJS_TEMPLATE_DAILY  = "template_daily_summary";  // ← שנה
     private static final String EMAILJS_TEMPLATE_WEEKLY = "template_weekly_summary"; // ← שנה
 
-    // ⚠️  Move this key to local.properties and expose via BuildConfig.FINNHUB_KEY
+    // ⚠️  Move this key to local.properties and expose via ApiConfig.finnhubKey()
     //     Example build.gradle line:
     //       buildConfigField "String", "FINNHUB_KEY", "\"${localProps['finnhub.api.key']}\""
     //     Then replace the line below with:
-    //       private static final String FINNHUB_KEY = BuildConfig.FINNHUB_KEY;
-    private static final String FINNHUB_KEY = BuildConfig.FINNHUB_KEY;
+    //       private static final String FINNHUB_KEY = ApiConfig.finnhubKey();
+    private static final String FINNHUB_KEY = ApiConfig.finnhubKey();
 
     private final OkHttpClient httpClient = new OkHttpClient();
 
@@ -422,8 +422,8 @@ public class EmailSummaryService extends BroadcastReceiver {
 
             boolean isCrypto = CryptoHelper.isCryptoSymbol(stock.symbol);
             String url = isCrypto
-                    ? "https://api.binance.com/api/v3/ticker/24hr?symbol=" + CryptoHelper.getPair(stock.symbol)
-                    : "https://finnhub.io/api/v1/quote?symbol=" + stock.symbol + "&token=" + FINNHUB_KEY;
+                    ? ApiConfig.BINANCE_24H + CryptoHelper.getPair(stock.symbol)
+                    : ApiConfig.FINNHUB_QUOTE + stock.symbol + "&token=" + FINNHUB_KEY;
 
             httpClient.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
                 @Override public void onFailure(Call call, IOException e) {

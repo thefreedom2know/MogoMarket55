@@ -123,7 +123,7 @@ public class PriceAlertReceiver extends BroadcastReceiver {
         String forex = ChartFragment.FOREX_MAP.get(symbol.toUpperCase(Locale.US));
         if (symbol.contains(":")) {
             String pair = symbol.substring(symbol.indexOf(':') + 1);
-            fetchPrice("https://api.binance.com/api/v3/ticker/price?symbol=" + pair,
+            fetchPrice(ApiConfig.BINANCE_PRICE + pair,
                     "price", (price, error) -> {
                         if (error != null) Log.w(TAG, "Failed to fetch crypto price for " + symbol, error);
                         if (error == null) {
@@ -140,7 +140,7 @@ public class PriceAlertReceiver extends BroadcastReceiver {
             String yahooSymbol = spx ? "^GSPC" : (forex != null ? forex : symbol);
             try {
                 String encoded = URLEncoder.encode(yahooSymbol, StandardCharsets.UTF_8.name());
-                String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encoded
+                String url = ApiConfig.YAHOO_CHART + encoded
                         + "?range=2d&interval=1d";
                 fetchYahooPrice(context, stock, firebaseKey, watchlistRef, url,
                         operationFinished);
@@ -153,7 +153,7 @@ public class PriceAlertReceiver extends BroadcastReceiver {
 
         if (crypto != null) {
             String pair = crypto.substring(crypto.indexOf(':') + 1);
-            fetchPrice("https://api.binance.com/api/v3/ticker/price?symbol=" + pair,
+            fetchPrice(ApiConfig.BINANCE_PRICE + pair,
                     "price", (price, error) -> {
                         if (error != null) Log.w(TAG, "Failed to fetch crypto price for " + symbol, error);
                         if (error == null) {
@@ -166,8 +166,8 @@ public class PriceAlertReceiver extends BroadcastReceiver {
 
         try {
             String encoded = URLEncoder.encode(symbol, StandardCharsets.UTF_8.name());
-            String url = "https://finnhub.io/api/v1/quote?symbol=" + encoded
-                    + "&token=" + BuildConfig.FINNHUB_KEY;
+            String url = ApiConfig.FINNHUB_QUOTE + encoded
+                    + "&token=" + ApiConfig.finnhubKey();
             fetchPrice(url, "c", (price, error) -> {
                 if (error != null) Log.w(TAG, "Failed to fetch stock price for " + symbol, error);
                 if (error == null) {

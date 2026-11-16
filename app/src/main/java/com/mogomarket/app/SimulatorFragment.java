@@ -252,13 +252,13 @@ public class SimulatorFragment extends Fragment {
         if (spx) {
             url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1d&interval=1m";
         } else {
-            String token = BuildConfig.FINNHUB_KEY;
+            String token = ApiConfig.finnhubKey();
             if (token == null || token.trim().isEmpty()) {
                 callback.onResult(0, new IOException("Stock quote service is not configured"));
                 return;
             }
             try {
-                url = "https://finnhub.io/api/v1/quote?symbol="
+                url = ApiConfig.FINNHUB_QUOTE
                         + URLEncoder.encode(symbol, StandardCharsets.UTF_8.name())
                         + "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8.name());
             } catch (Exception error) {

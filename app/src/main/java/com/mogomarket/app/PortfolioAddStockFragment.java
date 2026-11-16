@@ -469,7 +469,7 @@ public class PortfolioAddStockFragment extends Fragment {
 
         try {
             String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name());
-            String url = "https://query1.finance.yahoo.com/v1/finance/search?q=" + encoded
+            String url = ApiConfig.YAHOO_SEARCH + encoded
                     + "&quotesCount=25&newsCount=0";
             Request request = new Request.Builder()
                     .url(url)
@@ -740,7 +740,7 @@ public class PortfolioAddStockFragment extends Fragment {
     }
 
     private void lookupCompanyMetadata(String ticker, MetadataCallback callback) {
-        String token = BuildConfig.FINNHUB_KEY;
+        String token = ApiConfig.finnhubKey();
         if (token == null || token.trim().isEmpty()) {
             android.util.Log.w("PortfolioAddStock", "Company lookup skipped: API key is missing");
             callback.onResult(new CompanyMetadata("", null));
@@ -750,7 +750,7 @@ public class PortfolioAddStockFragment extends Fragment {
             String encodedSymbol = URLEncoder.encode(ticker, StandardCharsets.UTF_8.name());
             String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8.name());
             Request request = new Request.Builder()
-                    .url("https://finnhub.io/api/v1/stock/profile2?symbol="
+                    .url(ApiConfig.FINNHUB_PROFILE
                             + encodedSymbol + "&token=" + encodedToken)
                     .build();
             client.newCall(request).enqueue(new Callback() {

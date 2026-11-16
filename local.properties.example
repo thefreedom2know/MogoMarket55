@@ -1,0 +1,18 @@
+# Copy this file to local.properties (it is ignored by git) and fill in your own values.
+# local.properties is the ONLY place for secrets. Never commit real keys.
+
+# Finnhub - https://finnhub.io  (stock quotes; without it the app falls back to free Yahoo data)
+FINNHUB_KEY=
+
+# Google Gemini - https://aistudio.google.com  (AI chat)
+GEMINI_API_KEY=
+
+# Email sending (password reset, daily summary) - Gmail address and an app password
+SMTP_EMAIL=
+SMTP_PASSWORD=
+
+# Release signing (optional)
+STORE_FILE=
+STORE_PASSWORD=
+KEY_ALIAS=release
+KEY_PASSWORD=

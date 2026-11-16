@@ -35,16 +35,35 @@
             android:paddingTop="13dp"
             android:paddingBottom="12dp">
 
-            <TextView
-                android:id="@+id/stockSymbol"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
                 android:gravity="center_vertical"
-                android:maxLines="1"
-                android:textColor="#22D3EE"
-                android:textSize="36sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/stockSymbol"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center_vertical"
+                    android:maxLines="1"
+                    android:textColor="#22D3EE"
+                    android:textSize="36sp"
+                    android:textStyle="bold" />
+
+                <com.mogomarket.app.PortfolioAllocationRingView
+                    android:id="@+id/portfolioAllocationRing"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="12dp"
+                    android:contentDescription="Portfolio allocation percentage" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+            </LinearLayout>
 
             <com.mogomarket.app.PortfolioTrendView
                 android:id="@+id/stockTrend"
@@ -139,11 +158,7 @@
                 android:orientation="horizontal"
                 android:visibility="gone">
 
-                <com.mogomarket.app.PortfolioAllocationRingView
-                    android:id="@+id/portfolioAllocationRing"
-                    android:layout_width="62dp"
-                    android:layout_height="62dp"
-                    android:contentDescription="Portfolio allocation percentage" />
+
             </LinearLayout>
 
             <!-- Retained for adapter compatibility; these details are available in edit/actions. -->

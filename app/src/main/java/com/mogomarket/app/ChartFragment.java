@@ -36,6 +36,9 @@ import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.CandleData;
 import com.github.mikephil.charting.data.CandleDataSet;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.data.CandleEntry;
 import com.github.mikephil.charting.data.CombinedData;
 import com.github.mikephil.charting.data.Entry;
@@ -234,6 +237,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private final List<Long> currentTimestamps = new ArrayList<>();
     private final List<Entry> movingAverageEntries = new ArrayList<>();
     private boolean showMa150;
+    private boolean showVolume;
+    private final List<Float> currentVolumes = new ArrayList<>();
+    private List<Float> pendingVolumes = new ArrayList<>();
     private float lastPrice = 0f;
     private boolean isManualSelection = false;
     private boolean magnetMode;
@@ -341,6 +347,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         isDarkTheme = prefs.getBoolean(KEY_THEME, true);
         isChartDark = isDarkTheme;
         showMa150 = prefs.getBoolean("chart_show_ma150", false);
+        showVolume = prefs.getBoolean("chart_show_volume", true);
         currentTFIndex = getTimeframeIndex(
                 prefs.getString(KEY_DEFAULT_TIMEFRAME, "1Y"));
         visibleChartRange = TIMEFRAMES[currentTFIndex][3];
@@ -1182,6 +1189,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 showMa150 ? "Currently on" : "Currently off",
                 primaryText, secondaryText, surface,
                 this::toggleMa150, dialogHolder);
+        addChartMenuOption(content, "▮", "Volume",
+                showVolume ? "Shown on candlestick chart" : "Currently off",
+                primaryText, secondaryText, surface,
+                this::toggleVolume, dialogHolder);
         addChartMenuOption(content, "✦", "AI analysis",
                 "Ask Gemini about " + symbol, primaryText, secondaryText, surface,
                 () -> AiChatDialog.show(requireContext(),
@@ -1213,6 +1224,13 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             buttons[i].setTextColor(requireContext().getColor(selected
                     ? R.color.primary : R.color.chart_tf_text));
         }
+    }
+
+    private void toggleVolume() {
+        showVolume = !showVolume;
+        requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean("chart_show_volume", showVolume).apply();
+        if (!currentEntries.isEmpty() && isCandleStick) updateCandleChart(currentEntries);
     }
 
     private void toggleMa150() {
@@ -1377,10 +1395,43 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         if (!movingAverageEntries.isEmpty()) {
             LineDataSet averageSet = createMovingAverageDataSet();
             combinedData.setData(new LineData(averageSet));
-            candleStickChart.setDrawOrder(new CombinedChart.DrawOrder[]{
-                    CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE});
         }
+        boolean volumeShown = false;
+        if (showVolume && currentVolumes.size() == entries.size() && !entries.isEmpty()) {
+            List<BarEntry> bars = new ArrayList<>();
+            int[] barColors = new int[entries.size()];
+            float maxVolume = 0f;
+            for (int i = 0; i < entries.size(); i++) {
+                float v = Math.max(0f, currentVolumes.get(i));
+                maxVolume = Math.max(maxVolume, v);
+                bars.add(new BarEntry(entries.get(i).getX(), v));
+                boolean up = entries.get(i).getClose() >= entries.get(i).getOpen();
+                barColors[i] = (up ? COLOR_GAIN : COLOR_LOSS) & 0x00FFFFFF | 0x66000000;
+            }
+            if (maxVolume > 0f) {
+                BarDataSet volumeSet = new BarDataSet(bars, "Volume");
+                volumeSet.setColors(barColors);
+                volumeSet.setDrawValues(false);
+                volumeSet.setHighlightEnabled(false);
+                volumeSet.setAxisDependency(com.github.mikephil.charting.components.YAxis.AxisDependency.RIGHT);
+                BarData barData = new BarData(volumeSet);
+                barData.setBarWidth(0.8f);
+                combinedData.setData(barData);
+                com.github.mikephil.charting.components.YAxis right = candleStickChart.getAxisRight();
+                right.setAxisMinimum(0f);
+                right.setAxisMaximum(maxVolume * 4.5f); // bars stay in the bottom ~22%
+                volumeShown = true;
+            }
+        }
+        candleStickChart.setDrawOrder(volumeShown
+                ? (movingAverageEntries.isEmpty()
+                    ? new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE}
+                    : new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE})
+                : (movingAverageEntries.isEmpty()
+                    ? new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.CANDLE}
+                    : new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE}));
         candleStickChart.setData(combinedData);
+        candleStickChart.getLegend().setEnabled(showMa150 && !movingAverageEntries.isEmpty());
         candleStickChart.getLegend().setEnabled(showMa150 && !movingAverageEntries.isEmpty());
         attachMarker(candleStickChart);
         candleStickChart.animateX(400);
@@ -1451,7 +1502,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         String[] p = getYahooParams();
         String encodedSymbol = URLEncoder.encode(sym, StandardCharsets.UTF_8)
                 .replace("+", "%20");
-        String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodedSymbol
+        String url = ApiConfig.YAHOO_CHART + encodedSymbol
                 + "?interval=" + p[0] + "&range=" + p[1] + "&includePrePost=false";
 
         Request req = new Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build();
@@ -1484,6 +1535,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                     List<String> labels = new ArrayList<>();
                     List<Long> timestamps = new ArrayList<>();
                     List<CandleEntry> entries = new ArrayList<>();
+                    JSONArray vols = quote.optJSONArray("volume");
+                    List<Float> volumes = new ArrayList<>();
                     SimpleDateFormat sdf = dateFormatFor(p[0]);
                     float lc = 0f; int vc = 0;
                     int startIdx = 0;
@@ -1494,6 +1547,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                         labels.add(sdf.format(new Date(ts.getLong(i)*1000L)));
                         timestamps.add(ts.getLong(i) * 1000L);
                         closes.add(c);
+                        volumes.add(vols != null && !vols.isNull(i) ? (float) vols.getDouble(i) : 0f);
                         entries.add(new CandleEntry(vc, h, l, o, c));
                         lc = c; vc++;
                     }
@@ -1507,6 +1561,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                         dailyPreviousClose = closes.size() > 1
                                 ? closes.get(closes.size() - 2) : periodStartPrice;
                     }
+                    pendingVolumes = volumes;
                     postChartUpdate(sym, entries, labels, timestamps, closes, quotePrice,
                             periodStartPrice, dailyPreviousClose, requestGeneration);
                 } catch (Exception e) { Log.e("ChartFragment", "Yahoo parse error", e); }
@@ -1522,7 +1577,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         String pair = sym.contains(":") ? sym.substring(sym.indexOf(':') + 1) : sym;
         String binanceInterval = getBinanceInterval();
         int limit = getCryptoCandleLimit(binanceInterval, visibleChartRange);
-        String url = "https://api.binance.com/api/v3/klines?symbol=" + pair
+        String url = ApiConfig.BINANCE_KLINES + pair
                 + "&interval=" + binanceInterval + "&limit=" + limit;
 
         Request req = new Request.Builder().url(url)
@@ -1543,6 +1598,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                     List<String> labels = new ArrayList<>();
                     List<Long> timestamps = new ArrayList<>();
                     List<CandleEntry> entries = new ArrayList<>();
+                    List<Float> volumes = new ArrayList<>();
                     String[] yahooP = getYahooParams();
                     SimpleDateFormat sdf = dateFormatFor(yahooP[0]);
                     float lc = 0f; int vc = 0;
@@ -1556,10 +1612,12 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                         labels.add(sdf.format(new Date(t)));
                         timestamps.add(t);
                         closes.add(c);
+                        volumes.add((float) Double.parseDouble(bar.getString(5)));
                         entries.add(new CandleEntry(vc, h, l, o, c));
                         lc = c; vc++;
                     }
                     if (vc == 0) return;
+                    pendingVolumes = volumes;
                     float periodStartPrice = entries.get(0).getOpen();
                     float dailyPreviousClose = entries.size() > 1
                             ? entries.get(entries.size() - 2).getClose() : periodStartPrice;
@@ -1636,6 +1694,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 currentTimestamps.addAll(timestamps);
                 fullCloses.clear();
                 fullCloses.addAll(closes);
+                currentVolumes.clear();
+                currentVolumes.addAll(pendingVolumes);
                 lastPrice = lastClose;
                 lastDisplayedDailyChange = showDailyChange;
                 hasDisplayedChangeMode = true;
@@ -1698,7 +1758,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         }
         String encoded = URLEncoder.encode(sym, StandardCharsets.UTF_8)
                 .replace("+", "%20");
-        String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encoded
+        String url = ApiConfig.YAHOO_CHART + encoded
                 + "?interval=1d&range=5y&includePrePost=false";
         Request request = new Request.Builder().url(url)
                 .header("User-Agent", "Mozilla/5.0").build();

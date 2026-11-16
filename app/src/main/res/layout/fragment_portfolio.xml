@@ -17,11 +17,11 @@
             android:layout_width="match_parent"
             android:layout_height="190dp"
             android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="#0C1018"
+            app:cardBackgroundColor="#2A1D05"
             app:cardCornerRadius="22dp"
             app:cardElevation="0dp"
-            app:strokeColor="#3322D3EE"
-            app:strokeWidth="1dp">
+            app:strokeColor="#CCFFB84D"
+            app:strokeWidth="1.5dp">
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -44,7 +44,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Portfolio Value"
-                        android:textColor="#63D7F2"
+                        android:textColor="#FFD27A"
                         android:textSize="24sp"
                         android:textStyle="bold" />
 
@@ -412,7 +412,9 @@
                     app:backgroundTint="#1E2A3A"
                     app:cornerRadius="12dp"
                     app:icon="@android:drawable/ic_menu_share"
-                    app:iconPadding="0dp"
+                    android:padding="0dp"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
                     app:iconSize="18dp"
                     app:iconTint="#4DA3FF" />
             </LinearLayout>
@@ -429,7 +431,9 @@
                 android:insetBottom="0dp"
                 app:backgroundTint="#FFB84D"
                 app:cornerRadius="27dp"
+                android:padding="0dp"
                 app:icon="@drawable/ic_add_24"
+                app:iconGravity="textStart"
                 app:iconPadding="0dp"
                 app:iconSize="30dp"
                 app:iconTint="#271709" />

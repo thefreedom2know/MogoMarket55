@@ -25,10 +25,10 @@ import java.util.concurrent.TimeUnit;
 public class LLMService {
 
     // כתובת ה-API של Gemini
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/" +
+    private static final String GEMINI_API_URL = ApiConfig.GEMINI_MODELS +
             "gemini-flash-latest:generateContent";
     // מפתח API שמגיע מ-BuildConfig (שמור בצורה מאובטחת ב-local.properties)
-    private static final String API_KEY = BuildConfig.GEMINI_API_KEY;
+    private static final String API_KEY = ApiConfig.geminiKey();
 
     // HTTP client עם timeout של 30 שניות
     private final OkHttpClient client = new OkHttpClient.Builder()

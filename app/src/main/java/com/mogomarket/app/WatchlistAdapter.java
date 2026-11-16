@@ -45,7 +45,7 @@ import okhttp3.Response;
 
 public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.ViewHolder> {
 
-    private static final String FINNHUB_KEY = BuildConfig.FINNHUB_KEY;
+    private static final String FINNHUB_KEY = ApiConfig.finnhubKey();
 
 
     public interface OnWatchStockClickListener {
@@ -441,10 +441,10 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                 .replace("+", "%20");
         final boolean crypto = isCrypto(symbol);
         String url = crypto
-                ? "https://api.binance.com/api/v3/klines?symbol="
+                ? ApiConfig.BINANCE_KLINES
                         + mapSymbolForQuote(symbol).substring(mapSymbolForQuote(symbol).indexOf(':') + 1)
                         + "&interval=15m&limit=96"
-                : "https://query1.finance.yahoo.com/v8/finance/chart/" + encoded
+                : ApiConfig.YAHOO_CHART + encoded
                         + "?interval=" + (extendedSupported ? "1m" : "5m")
                         + "&range=1d&includePrePost=" + extendedSupported;
         Request request = new Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build();
@@ -534,7 +534,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                     ? requestSymbol.substring(requestSymbol.indexOf(':') + 1)
                     : requestSymbol;
 
-            String url = "https://api.binance.com/api/v3/klines?symbol=" + pair + "&interval=1d&limit=2";
+            String url = ApiConfig.BINANCE_KLINES + pair + "&interval=1d&limit=2";
 
             Request request = new Request.Builder()
                     .url(url)
@@ -637,7 +637,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
 
         String encodedSymbol = URLEncoder.encode(requestSymbol, StandardCharsets.UTF_8)
                 .replace("+", "%20");
-        String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodedSymbol
+        String url = ApiConfig.YAHOO_CHART + encodedSymbol
                 + "?interval=1d&range=5d&includePrePost=false";
 
         Request request = new Request.Builder()
@@ -771,7 +771,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
         }
         String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
         String encodedToken = URLEncoder.encode(FINNHUB_KEY, StandardCharsets.UTF_8);
-        String url = "https://finnhub.io/api/v1/quote?symbol=" + encodedSymbol
+        String url = ApiConfig.FINNHUB_QUOTE + encodedSymbol
                 + "&token=" + encodedToken;
         client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
             @Override

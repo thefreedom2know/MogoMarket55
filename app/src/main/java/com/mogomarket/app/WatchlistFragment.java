@@ -590,7 +590,7 @@ public class WatchlistFragment extends Fragment {
         try {
             String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name());
             Request finnhub = new Request.Builder()
-                    .url("https://finnhub.io/api/v1/search?q=" + encoded + "&token=" + FINNHUB_KEY)
+                    .url(ApiConfig.FINNHUB_SEARCH + encoded + "&token=" + FINNHUB_KEY)
                     .build();
             httpClient.newCall(finnhub).enqueue(new Callback() {
                 @Override
@@ -624,7 +624,7 @@ public class WatchlistFragment extends Fragment {
             });
 
             Request yahoo = new Request.Builder()
-                    .url("https://query1.finance.yahoo.com/v1/finance/search?q=" + encoded
+                    .url(ApiConfig.YAHOO_SEARCH + encoded
                             + "&quotesCount=25&newsCount=0")
                     .header("User-Agent", "Mozilla/5.0")
                     .build();

@@ -180,7 +180,7 @@ public class CryptoHelper {
 
     public static void fetchCurrentPrice(OkHttpClient client, String symbol, PriceCallback cb) {
         String pair = getPair(symbol);
-        String url  = "https://api.binance.com/api/v3/ticker/price?symbol=" + pair;
+        String url  = ApiConfig.BINANCE_PRICE + pair;
         client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
                 new Handler(Looper.getMainLooper()).post(() -> cb.onError(e.getMessage()));

@@ -193,8 +193,8 @@ public class DailySummaryEmailService extends BroadcastReceiver {
 
     private static boolean sendEmail(Context context, String toEmail, String subject, String body,
                                      boolean showSuccessNotification) {
-        String senderEmail = BuildConfig.SMTP_EMAIL;
-        String senderPassword = BuildConfig.SMTP_PASSWORD;
+        String senderEmail = ApiConfig.smtpEmail();
+        String senderPassword = ApiConfig.smtpPassword();
         if (senderEmail.trim().isEmpty() || senderPassword.trim().isEmpty()) {
             Log.e(TAG, "SMTP credentials are missing from the build configuration.");
             return false;
