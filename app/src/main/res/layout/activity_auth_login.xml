@@ -14,11 +14,11 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="24dp"
-        app:cardCornerRadius="16dp"
+        app:cardCornerRadius="20dp"
         app:cardElevation="8dp"
         app:cardBackgroundColor="@android:color/transparent"
         app:strokeWidth="1dp"
-        app:strokeColor="#2A1F9990"
+        app:strokeColor="@color/pf_3322d3ee"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -38,7 +38,7 @@
                 android:text="Log In"
                 android:textSize="28sp"
                 android:textStyle="bold"
-                android:textColor="#E5E7EB"
+                android:textColor="@color/pf_22d3ee"
                 android:layout_gravity="center_horizontal"
                 android:letterSpacing="0.05"
                 android:paddingBottom="16dp" />
@@ -48,7 +48,7 @@
                 android:layout_height="wrap_content"
                 android:text="Welcome back, trader"
                 android:textSize="14sp"
-                android:textColor="#B6C2D1"
+                android:textColor="@color/pf_8d9aae"
                 android:layout_gravity="center_horizontal"
                 android:paddingBottom="24dp" />
 
@@ -58,8 +58,8 @@
                 android:layout_height="wrap_content"
                 android:hint="Email address"
                 android:inputType="textEmailAddress"
-                android:textColor="#E5E7EB"
-                android:textColorHint="#7B8AA0"
+                android:textColor="@color/pf_ffffff"
+                android:textColorHint="@color/pf_657184"
                 android:background="@android:color/transparent"
                 android:padding="12dp"
                 android:drawablePadding="8dp"
@@ -68,7 +68,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#2F1F9990"
+                android:background="@color/pf_3322d3ee"
                 android:layout_marginBottom="16dp" />
 
             <EditText
@@ -77,8 +77,8 @@
                 android:layout_height="wrap_content"
                 android:hint="Password"
                 android:inputType="textPassword"
-                android:textColor="#E5E7EB"
-                android:textColorHint="#7B8AA0"
+                android:textColor="@color/pf_ffffff"
+                android:textColorHint="@color/pf_657184"
                 android:background="@android:color/transparent"
                 android:padding="12dp"
                 android:drawablePadding="8dp"
@@ -87,7 +87,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#2F1F9990"
+                android:background="@color/pf_3322d3ee"
                 android:layout_marginBottom="4dp" />
 
             <!-- Forgot Password link -->
@@ -97,7 +97,7 @@
                 android:layout_height="wrap_content"
                 android:text="Forgot password?"
                 android:textSize="13sp"
-                android:textColor="#4DA3FF"
+                android:textColor="@color/pf_22d3ee"
                 android:paddingTop="6dp"
                 android:paddingBottom="18dp"
                 android:layout_gravity="end"
@@ -114,8 +114,8 @@
                 android:textAllCaps="false"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="#FFFFFF"
-                app:backgroundTint="#329763"
+                android:textColor="#271709"
+                app:backgroundTint="@color/pf_ffb84d"
                 android:stateListAnimator="@null"/>
 
             <!-- Biometric -->
@@ -128,8 +128,8 @@
                 android:textAllCaps="false"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="#FFFFFF"
-                app:backgroundTint="#329763"
+                android:textColor="#271709"
+                app:backgroundTint="@color/pf_ffb84d"
                 android:stateListAnimator="@null"/>
 
             <!-- Google Sign-In -->
@@ -162,9 +162,9 @@
                 android:textAllCaps="false"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:textColor="#E5E7EB"
-                app:backgroundTint="#1F2A3A"
-                app:strokeColor="#4DA3FF"
+                android:textColor="@color/pf_ffffff"
+                app:backgroundTint="@color/pf_1e2a3a"
+                app:strokeColor="@color/pf_22d3ee"
                 app:strokeWidth="1.5dp"
                 android:stateListAnimator="@null"/>
 
@@ -172,7 +172,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#22FFFFFF"
+                android:background="@color/pf_1fffffff"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="14dp"/>
 
@@ -185,7 +185,7 @@
                 android:textAllCaps="false"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:textColor="#4DA3FF"
+                android:textColor="@color/pf_22d3ee"
                 app:backgroundTint="@android:color/transparent"
                 android:stateListAnimator="@null"/>
 
