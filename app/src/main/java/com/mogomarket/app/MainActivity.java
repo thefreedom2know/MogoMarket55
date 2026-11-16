@@ -134,11 +134,15 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        // Outer buttons follow the rounded ends of the dock so the selection never leaves it.
+        buttons[0].setBackgroundResource(R.drawable.bg_nav_dock_item_left);
+        buttons[buttons.length - 1].setBackgroundResource(R.drawable.bg_nav_dock_item_right);
+
         navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
             for (int i = 0; i < buttons.length; i++) {
                 boolean selected = destination.getId() == destinationIds[i];
                 buttons[i].setSelected(selected);
-                float scale = selected ? 1.18f : 1f;
+                float scale = 1f; // no enlargement: the selection must stay inside the dock
                 buttons[i].animate()
                         .scaleX(scale)
                         .scaleY(scale)

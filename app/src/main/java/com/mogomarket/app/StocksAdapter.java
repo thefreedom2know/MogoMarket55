@@ -188,6 +188,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
         holder.cardView.setStrokeColor(Color.argb(75, Color.red(accentColor),
                 Color.green(accentColor), Color.blue(accentColor)));
         holder.trendView.setChangePercent(0, accentColor);
+        holder.todayText.setText("");
         holder.pnlPercentText.setText("--");
         holder.pnlPercentText.setTextColor(Color.rgb(141, 154, 174));
         holder.allocationRing.setPercent(0, accentColor);
@@ -713,6 +714,8 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
             });
             holder.changePercentText.setText(dailyText);
             holder.changePercentText.setTextColor(dailyGainLossColor);
+            holder.todayText.setText(dailyText);
+            holder.todayText.setTextColor(dailyGainLossColor);
         });
 
         holder.changePercentDetailText.post(() -> {
@@ -981,7 +984,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
         TextView symbolText, currentPriceText, changePercentText;
         TextView changePercentDetailText, buyPriceText, targetPriceText, stopLossPriceText;
         TextView riskRewardText, holdingDaysText, pnlDollarText, stockNameText, notesText;
-        TextView pnlPercentText;
+        TextView pnlPercentText, todayText;
         TextView strategyTagText;
         TextView sectorText;
         TextView pnlLabel;
@@ -1011,6 +1014,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
             riskRewardText          = itemView.findViewById(R.id.stockRiskReward);
             holdingDaysText         = itemView.findViewById(R.id.stockHoldingDays);
             pnlPercentText          = itemView.findViewById(R.id.stockPnlPercent);
+            todayText               = itemView.findViewById(R.id.stockTodayText);
             pnlDollarText           = itemView.findViewById(R.id.stockPnlDollar);
             stockNameText           = itemView.findViewById(R.id.stockName);
             notesText               = itemView.findViewById(R.id.stockNotes);
