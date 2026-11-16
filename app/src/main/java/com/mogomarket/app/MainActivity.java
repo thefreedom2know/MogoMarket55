@@ -156,42 +156,84 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private static final String[][] GUIDE_STEPS = {
+            {"Chart", "View live prices as candles or a line, pick a timeframe, add volume or the 150-day average, and long-press the chart for a crosshair. Pull down to refresh."},
+            {"Portfolio", "Your open positions with profit/loss in % and $, today's change and each position's share of the portfolio. Tap the yellow + to add a trade (or import it from a screenshot) and the calculator to size a position."},
+            {"Watchlist", "Follow the stocks you care about with a mini chart (green = up today, red = down), pre/post-market prices and price alerts."},
+            {"Trades", "Closed trades with results, analytics and history, so you can learn from past decisions."},
+            {"Simulator", "Practice trading with simulated positions - no real money involved."},
+            {"Settings", "Customize the theme, chart defaults, notifications and the daily summary email."}
+    };
+    private static final int[] GUIDE_BUTTON_IDS = {
+            R.id.nav_chart_button, R.id.nav_portfolio_button, R.id.nav_watchlist_button,
+            R.id.nav_trades_button, R.id.nav_simulator_button, R.id.nav_settings_button
+    };
+
+    /** Walks through every page of the app, explaining each one while it is on screen. */
     private void showFirstRunGuide(SharedPreferences preferences) {
-        ScrollView scrollView = new ScrollView(this);
+        showGuideStep(preferences, 0);
+    }
+
+    private void showGuideStep(SharedPreferences preferences, int step) {
+        View button = findViewById(GUIDE_BUTTON_IDS[step]);
+        if (button != null) button.performClick();
+
+        float density = getResources().getDisplayMetrics().density;
+        int padding = Math.round(20 * density);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        int padding = Math.round(20 * getResources().getDisplayMetrics().density);
-        content.setPadding(padding, padding, padding, padding);
+        content.setPadding(padding, padding, padding, Math.round(8 * density));
+
+        TextView counter = new TextView(this);
+        counter.setText("Step " + (step + 1) + " of " + GUIDE_STEPS.length);
+        counter.setTextSize(12f);
+        counter.setTextColor(0xFFFFB84D);
+        content.addView(counter);
 
         TextView title = new TextView(this);
-        title.setText("Welcome to Mogo Market");
-        title.setTextSize(20f);
+        title.setText(GUIDE_STEPS[step][0]);
+        title.setTextSize(22f);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         content.addView(title);
 
-        TextView pages = new TextView(this);
-        pages.setText(
-                "Chart — View prices, choose a timeframe, and compare trends.\n\n"
-                + "Watchlist — Track selected stocks and set price alerts.\n\n"
-                + "Portfolio — Manage open positions, cash, performance, and screenshots.\n\n"
-                + "Trades — Review closed trades, analytics, and trade history.\n\n"
-                + "Simulator — Practice trading with simulated positions.\n\n"
-                + "Settings — Customize the app, chart defaults, and notifications.\n\n"
-                + "PnL Calculator — Estimate position size and risk/reward.\n\n"
-                + "Add Trade — Record an open position or import a trade screenshot.");
-        pages.setTextSize(15f);
-        LinearLayout.LayoutParams pageParams = new LinearLayout.LayoutParams(
+        TextView body = new TextView(this);
+        body.setText(GUIDE_STEPS[step][1]);
+        body.setTextSize(15f);
+        LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        pageParams.topMargin = Math.round(12 * getResources().getDisplayMetrics().density);
-        content.addView(pages, pageParams);
-        scrollView.addView(content);
+        bodyParams.topMargin = Math.round(8 * density);
+        content.addView(body, bodyParams);
 
-        new AlertDialog.Builder(this)
-                .setView(scrollView)
-                .setPositiveButton("Get started", (dialog, which) ->
-                        preferences.edit().putBoolean(KEY_FIRST_RUN_GUIDE_SHOWN, true).apply())
+        boolean last = step == GUIDE_STEPS.length - 1;
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(content)
+                .setPositiveButton(last ? "Get started" : "Next", (d, which) -> {
+                    if (last) {
+                        finishFirstRunGuide(preferences);
+                    } else {
+                        showGuideStep(preferences, step + 1);
+                    }
+                })
+                .setNegativeButton(last ? null : "Skip", (d, which) -> finishFirstRunGuide(preferences))
                 .setCancelable(false)
-                .show();
+                .create();
+        dialog.setOnShowListener(ignored -> {
+            android.view.Window window = dialog.getWindow();
+            if (window == null) return;
+            // Keep the page itself visible: card at the top, light dim.
+            window.setGravity(android.view.Gravity.TOP);
+            window.setDimAmount(0.2f);
+            android.view.WindowManager.LayoutParams lp = window.getAttributes();
+            lp.y = Math.round(40 * density);
+            window.setAttributes(lp);
+        });
+        dialog.show();
+    }
+
+    private void finishFirstRunGuide(SharedPreferences preferences) {
+        preferences.edit().putBoolean(KEY_FIRST_RUN_GUIDE_SHOWN, true).apply();
+        View first = findViewById(GUIDE_BUTTON_IDS[0]);
+        if (first != null) first.performClick();
     }
 
     private void requestNotificationPermission() {
