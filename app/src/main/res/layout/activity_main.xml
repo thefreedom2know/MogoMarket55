@@ -33,6 +33,7 @@
             android:layout_width="match_parent"
             android:layout_height="64dp"
             android:layout_gravity="center"
+            android:elevation="12dp"
             android:layout_marginHorizontal="24dp"
             android:gravity="center"
             android:orientation="horizontal">
@@ -44,23 +45,26 @@
                 android:layout_weight="1"
                 android:contentDescription="@string/nav_chart_label"
                 android:tag="@id/nav_chart"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_nav_dock_item"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="vertical">
                 <ImageView
+                    android:duplicateParentState="true"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@drawable/ic_nav_chart"
                     app:tint="@color/navigation_icon_tint" />
                 <TextView
+                    android:duplicateParentState="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="@string/nav_chart_label"
                     android:textColor="@color/navigation_icon_tint"
-                    android:textSize="9sp"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
                     android:maxLines="1" />
             </LinearLayout>
 
@@ -71,23 +75,26 @@
                 android:layout_weight="1"
                 android:contentDescription="@string/nav_portfolio_label"
                 android:tag="@id/nav_portfolio"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_nav_dock_item"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="vertical">
                 <ImageView
+                    android:duplicateParentState="true"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@drawable/ic_nav_portfolio"
                     app:tint="@color/navigation_icon_tint" />
                 <TextView
+                    android:duplicateParentState="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="@string/nav_portfolio_label"
                     android:textColor="@color/navigation_icon_tint"
-                    android:textSize="9sp"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
                     android:maxLines="1" />
             </LinearLayout>
 
@@ -98,23 +105,26 @@
                 android:layout_weight="1"
                 android:contentDescription="@string/nav_watchlist_label"
                 android:tag="@id/nav_stocks"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_nav_dock_item"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="vertical">
                 <ImageView
+                    android:duplicateParentState="true"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@drawable/ic_nav_watchlist"
                     app:tint="@color/navigation_icon_tint" />
                 <TextView
+                    android:duplicateParentState="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="@string/nav_watchlist_label"
                     android:textColor="@color/navigation_icon_tint"
-                    android:textSize="9sp"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
                     android:maxLines="1" />
             </LinearLayout>
 
@@ -125,23 +135,26 @@
                 android:layout_weight="1"
                 android:contentDescription="@string/nav_trades_label"
                 android:tag="@id/nav_closed_trades"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_nav_dock_item"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="vertical">
                 <ImageView
+                    android:duplicateParentState="true"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@drawable/ic_nav_closed"
                     app:tint="@color/navigation_icon_tint" />
                 <TextView
+                    android:duplicateParentState="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="@string/nav_trades_label"
                     android:textColor="@color/navigation_icon_tint"
-                    android:textSize="9sp"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
                     android:maxLines="1" />
             </LinearLayout>
 
@@ -152,23 +165,26 @@
                 android:layout_weight="1"
                 android:contentDescription="@string/nav_simulator_label"
                 android:tag="@id/nav_simulator"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_nav_dock_item"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="vertical">
                 <ImageView
+                    android:duplicateParentState="true"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@drawable/ic_nav_simulator"
                     app:tint="@color/navigation_icon_tint" />
                 <TextView
+                    android:duplicateParentState="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="@string/nav_simulator_label"
                     android:textColor="@color/navigation_icon_tint"
-                    android:textSize="9sp"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
                     android:maxLines="1" />
             </LinearLayout>
 
@@ -179,23 +195,26 @@
                 android:layout_weight="1"
                 android:contentDescription="@string/nav_settings_label"
                 android:tag="@id/nav_settings"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_nav_dock_item"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="vertical">
                 <ImageView
+                    android:duplicateParentState="true"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:src="@drawable/ic_nav_settings"
                     app:tint="@color/navigation_icon_tint" />
                 <TextView
+                    android:duplicateParentState="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="@string/nav_settings_label"
                     android:textColor="@color/navigation_icon_tint"
-                    android:textSize="9sp"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
                     android:maxLines="1" />
             </LinearLayout>
         </LinearLayout>

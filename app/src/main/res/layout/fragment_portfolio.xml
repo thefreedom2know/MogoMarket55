@@ -98,199 +98,6 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:orientation="horizontal"
-        android:weightSum="4">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="62dp"
-            android:layout_marginEnd="4dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_stat_today"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Today"
-                android:textColor="#FF7279"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvDailyPnl"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:text="$0.00"
-                android:textColor="#FF7279"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvDailyPct"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:visibility="gone" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="62dp"
-            android:layout_marginHorizontal="3dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_glass_pill_card"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
-
-            <TextView
-                android:id="@+id/tvOpenCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0 Open"
-                android:textColor="#A8DDF0"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Positions"
-                android:textColor="#A8DDF0"
-                android:textSize="11sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="62dp"
-            android:layout_marginHorizontal="3dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_glass_pill_card"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Cash"
-                android:textColor="#E6DDF4"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvCash"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:contentDescription="Cash balance. Long press to edit"
-                android:longClickable="true"
-                android:text="$0.00"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="62dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_glass_pill_card"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="5dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Invested"
-                android:textColor="#E6DDF4"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvTotalInvested"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="$0.00"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/concentrationRiskCard"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:visibility="gone"
-        app:cardBackgroundColor="#21171A"
-        app:cardCornerRadius="18dp"
-        app:cardElevation="0dp"
-        app:strokeColor="#99FF755E"
-        app:strokeWidth="1dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_gradient_warning"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="12dp">
-
-            <ImageView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:contentDescription="Concentration risk warning"
-                android:src="@android:drawable/ic_dialog_alert"
-                android:tint="#FFF3D2" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Concentration Risk"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvConcentrationAlert"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#FFF1E8"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_badge_high_risk"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="5dp"
-                android:text="HIGH RISK"
-                android:textColor="#241207"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
         android:layout_marginBottom="5dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
@@ -331,7 +138,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Allocation"
+                android:text="Details"
                 android:textColor="#8D9AAE"
                 android:textSize="11sp" />
 
@@ -339,26 +146,227 @@
                 android:id="@+id/assetAllocationArrow"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:contentDescription="Expand asset allocation chart"
+                android:contentDescription="Show portfolio details"
                 android:src="@drawable/ic_arrow_drop_down_24"
                 android:tint="#8D9AAE" />
         </LinearLayout>
     </LinearLayout>
 
-    <com.mogomarket.app.AssetAllocationChart
-        android:id="@+id/assetAllocationChart"
-        android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/tvPortfolioBeta"
+    <LinearLayout
+        android:id="@+id/portfolioDetailsContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="2dp"
-        android:text="Portfolio beta vs. S&amp;P 500: calculating"
-        android:textColor="#657184"
-        android:textSize="10sp" />
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal"
+            android:weightSum="4">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="62dp"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_stat_today"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="5dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Today"
+                    android:textColor="#FF7279"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvDailyPnl"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:text="$0.00"
+                    android:textColor="#FF7279"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvDailyPct"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="62dp"
+                android:layout_marginHorizontal="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_glass_pill_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="5dp">
+
+                <TextView
+                    android:id="@+id/tvOpenCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 Open"
+                    android:textColor="#A8DDF0"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Positions"
+                    android:textColor="#A8DDF0"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="62dp"
+                android:layout_marginHorizontal="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_glass_pill_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="5dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cash"
+                    android:textColor="#E6DDF4"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvCash"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="Cash balance. Long press to edit"
+                    android:longClickable="true"
+                    android:text="$0.00"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="62dp"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_glass_pill_card"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="5dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Invested"
+                    android:textColor="#E6DDF4"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvTotalInvested"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="$0.00"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/concentrationRiskCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="#21171A"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#99FF755E"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_gradient_warning"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:contentDescription="Concentration risk warning"
+                    android:src="@android:drawable/ic_dialog_alert"
+                    android:tint="#FFF3D2" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Concentration Risk"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvConcentrationAlert"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFF1E8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_badge_high_risk"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="5dp"
+                    android:text="HIGH RISK"
+                    android:textColor="#241207"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.mogomarket.app.AssetAllocationChart
+            android:id="@+id/assetAllocationChart"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:visibility="visible" />
+
+        <TextView
+            android:id="@+id/tvPortfolioBeta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="2dp"
+            android:text="Portfolio beta vs. S&amp;P 500: calculating"
+            android:textColor="#657184"
+            android:textSize="10sp" />
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tradesRecyclerView"

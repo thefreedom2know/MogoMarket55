@@ -67,6 +67,18 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
 
     private final Map<String, float[]> quoteCache = new HashMap<>();
     private final Set<String> loading = new HashSet<>();
+
+    // Pre-market / after-hours quotes (free Yahoo chart API with includePrePost=true).
+    private static final long EXTENDED_CACHE_TTL_MS = 60_000L;
+    private static class ExtendedQuote {
+        String label;      // "Pre" or "After"
+        float price;
+        float changePercent; // versus the last regular-session price
+        long fetchedAt;
+        java.util.List<Float> spark = new java.util.ArrayList<>();
+    }
+    private final Map<String, ExtendedQuote> extendedCache = new HashMap<>();
+    private final Set<String> extendedLoading = new HashSet<>();
     private static final long QUOTE_CACHE_TTL_MS = 60_000L;
 
     private String currentSearch = "";
@@ -169,6 +181,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
     public void refresh() {
         quoteCache.clear();
         loading.clear();
+        extendedCache.clear();
+        extendedLoading.clear();
         notifyDataSetChanged();
     }
 
@@ -346,6 +360,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
             }
         }
 
+        bindExtendedHours(stock, holder, colorGain, colorLoss);
+
         if (stock.alertEnabled && stock.alertTargetPrice > 0) {
             holder.alertText.setText(String.format(
                     Locale.US,
@@ -376,6 +392,110 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
     @Override
     public int getItemCount() {
         return displayList.size();
+    }
+
+    private boolean supportsExtendedHours(String symbol) {
+        if (symbol == null || symbol.trim().isEmpty()) return false;
+        String s = symbol.trim().toUpperCase(Locale.US);
+        return !isCrypto(s) && !isForex(s) && !s.startsWith("^") && !s.endsWith("=F")
+                && !s.endsWith("=X");
+    }
+
+    private void showSparkline(ViewHolder holder, ExtendedQuote q, int colorGain, int colorLoss) {
+        if (holder.sparkline == null || q == null || q.spark.size() < 2) return;
+        boolean up = q.spark.get(q.spark.size() - 1) >= q.spark.get(0);
+        holder.sparkline.setData(q.spark, up ? colorGain : colorLoss);
+    }
+
+    private void showExtended(ViewHolder holder, ExtendedQuote q, int colorGain, int colorLoss) {
+        showSparkline(holder, q, colorGain, colorLoss);
+        if (q == null) {
+            holder.extendedText.setVisibility(View.GONE);
+            return;
+        }
+        String sign = q.changePercent >= 0 ? "+" : "-";
+        holder.extendedText.setText(String.format(Locale.US, "%s $%.2f  %s%.2f%%",
+                q.label, q.price, sign, Math.abs(q.changePercent)));
+        holder.extendedText.setTextColor(q.changePercent >= 0 ? colorGain : colorLoss);
+        holder.extendedText.setVisibility(View.VISIBLE);
+    }
+
+    private void bindExtendedHours(StockWatchData stock, ViewHolder holder,
+                                   int colorGain, int colorLoss) {
+        holder.extendedText.setVisibility(View.GONE);
+        if (!supportsExtendedHours(stock.symbol)) return;
+        ExtendedQuote cached = extendedCache.get(stock.symbol);
+        if (cached != null && System.currentTimeMillis() - cached.fetchedAt < EXTENDED_CACHE_TTL_MS) {
+            showExtended(holder, cached.label == null ? null : cached, colorGain, colorLoss);
+            return;
+        }
+        if (extendedLoading.contains(stock.symbol)) return;
+        extendedLoading.add(stock.symbol);
+        final String symbol = stock.symbol;
+        String encoded = URLEncoder.encode(symbol.trim(), StandardCharsets.UTF_8).replace("+", "%20");
+        String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encoded
+                + "?interval=1m&range=1d&includePrePost=true";
+        Request request = new Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                extendedLoading.remove(symbol);
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                extendedLoading.remove(symbol);
+                if (response.body() == null) return;
+                String body = response.body().string();
+                if (!response.isSuccessful()) return;
+                ExtendedQuote quote = new ExtendedQuote();
+                quote.fetchedAt = System.currentTimeMillis();
+                try {
+                    JSONArray result = new JSONObject(body).getJSONObject("chart").optJSONArray("result");
+                    if (result != null && result.length() > 0) {
+                        JSONObject item = result.getJSONObject(0);
+                        JSONObject meta = item.getJSONObject("meta");
+                        double regularPrice = meta.optDouble("regularMarketPrice", 0);
+                        JSONObject period = meta.getJSONObject("currentTradingPeriod");
+                        long regularStart = period.getJSONObject("regular").getLong("start");
+                        long regularEnd = period.getJSONObject("regular").getLong("end");
+                        JSONArray stamps = item.optJSONArray("timestamp");
+                        JSONArray closes = item.getJSONObject("indicators")
+                                .getJSONArray("quote").getJSONObject(0).getJSONArray("close");
+                        java.util.List<Float> all = new java.util.ArrayList<>();
+                        for (int i = 0; i < closes.length(); i++) {
+                            if (!closes.isNull(i)) all.add((float) closes.getDouble(i));
+                        }
+                        int step = Math.max(1, all.size() / 40);
+                        for (int i = 0; i < all.size(); i += step) quote.spark.add(all.get(i));
+                        if (!all.isEmpty() && (all.size() - 1) % step != 0) quote.spark.add(all.get(all.size() - 1));
+                        if (stamps != null && regularPrice > 0) {
+                            for (int i = Math.min(stamps.length(), closes.length()) - 1; i >= 0; i--) {
+                                if (closes.isNull(i)) continue;
+                                long ts = stamps.getLong(i);
+                                double price = closes.getDouble(i);
+                                boolean fresh = quote.fetchedAt / 1000L - ts < 20 * 3600L;
+                                if (fresh && price > 0 && ts < regularStart) quote.label = "Pre";
+                                else if (fresh && price > 0 && ts >= regularEnd) quote.label = "After";
+                                if (quote.label != null) {
+                                    quote.price = (float) price;
+                                    quote.changePercent =
+                                            (float) ((price - regularPrice) / regularPrice * 100.0);
+                                }
+                                break; // only the most recent bar matters
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                    // No extended-hours data: the row simply shows nothing extra.
+                }
+                extendedCache.put(symbol, quote);
+                holder.extendedText.post(() -> {
+                    if (!symbol.equals(holder.itemView.getTag())) return;
+                    showExtended(holder, quote.label == null ? null : quote, colorGain, colorLoss);
+                });
+            }
+        });
     }
 
     private void fetchQuote(StockWatchData stock,
@@ -486,7 +606,9 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
             return;
         }
 
-        if (!isForex(requestSymbol) && !requestSymbol.endsWith("=F")
+        // Finnhub needs an API key; without one fall back to the free Yahoo chart API below.
+        if (FINNHUB_KEY != null && !FINNHUB_KEY.trim().isEmpty()
+                && !isForex(requestSymbol) && !requestSymbol.endsWith("=F")
                 && !"^GSPC".equalsIgnoreCase(requestSymbol)) {
             fetchFinnhubQuote(stock, holder, targetSymbol, requestSymbol, colorPrimary,
                     textSecondary, colorGain, colorLoss, ctx);
@@ -795,6 +917,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView symbolText, badgeText, priceText, dayChangeText, alertText;
+        TextView extendedText;
+        WatchlistSparklineView sparkline;
         ImageButton btnDelete;
 
         ViewHolder(@NonNull View itemView) {
@@ -804,6 +928,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
             priceText = itemView.findViewById(R.id.stockPriceText);
             dayChangeText = itemView.findViewById(R.id.stockDayChangeText);
             alertText = itemView.findViewById(R.id.stockAlertText);
+            extendedText = itemView.findViewById(R.id.stockExtendedText);
+            sparkline = itemView.findViewById(R.id.watchlistSparkline);
             btnDelete = itemView.findViewById(R.id.btnDeleteStock);
         }
     }

@@ -57,6 +57,7 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
     private TextView tvPortfolioBeta;
     private AssetAllocationChart assetAllocationChart;
     private View assetAllocationToggle;
+    private View portfolioDetailsContainer;
     private ImageView assetAllocationArrow;
     private boolean assetAllocationExpanded;
     private double cashBalance;
@@ -87,6 +88,7 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
         tvPortfolioBeta = view.findViewById(R.id.tvPortfolioBeta);
         assetAllocationChart = view.findViewById(R.id.assetAllocationChart);
         assetAllocationToggle = view.findViewById(R.id.assetAllocationToggle);
+        portfolioDetailsContainer = view.findViewById(R.id.portfolioDetailsContainer);
         assetAllocationArrow = view.findViewById(R.id.assetAllocationArrow);
         assetAllocationExpanded = false;
         assetAllocationToggle.setOnClickListener(v -> setAssetAllocationExpanded(
@@ -246,12 +248,14 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
 
     private void setAssetAllocationExpanded(boolean expanded) {
         assetAllocationExpanded = expanded;
-        assetAllocationChart.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        if (portfolioDetailsContainer != null) {
+            portfolioDetailsContainer.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        }
         assetAllocationArrow.animate().rotation(expanded ? 180f : 0f)
                 .setDuration(180L).start();
         assetAllocationToggle.setContentDescription(expanded
-                ? "Collapse asset allocation chart"
-                : "Expand asset allocation chart");
+                ? "Hide portfolio details"
+                : "Show portfolio details");
     }
 
     private void requestPortfolioBeta(double cash) {
@@ -738,6 +742,8 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
             @NonNull
             @Override
             public Transaction.Result doTransaction(@NonNull MutableData currentData) {
+                // First run can see an empty local cache; succeed so Firebase retries with server data.
+                if (currentData.getValue() == null) return Transaction.success(currentData);
                 MutableData portfolio = currentData.child("portfolio-stocks");
                 MutableData oldData = portfolio.child(oldKey);
                 StockData previousStock = oldData.getValue(StockData.class);
@@ -748,14 +754,20 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
                 MutableData cashData = currentData.child("portfolio-cash");
                 Double storedCash = cashData.getValue(Double.class);
                 double cash = storedCash != null ? storedCash : 0.0;
+                // The edit dialog rounds to cents; ignore sub-cent differences so editing only
+                // the date does not look like an investment change that needs cash.
                 boolean investmentChanged =
-                        Double.compare(previousStock.tradeAmount, updatedStock.tradeAmount) != 0
-                        || Double.compare(previousStock.entryFees, updatedStock.entryFees) != 0;
+                        Math.abs(previousStock.tradeAmount - updatedStock.tradeAmount) >= 0.005
+                        || Math.abs(previousStock.entryFees - updatedStock.entryFees) >= 0.005;
+                if (!investmentChanged) {
+                    updatedStock.tradeAmount = previousStock.tradeAmount;
+                    updatedStock.entryFees = previousStock.entryFees;
+                }
                 double availableCash = cash;
                 if (investmentChanged) {
                     availableCash += previousStock.tradeAmount + previousStock.entryFees
                             - updatedStock.tradeAmount - updatedStock.entryFees;
-                    if (!Double.isFinite(availableCash) || availableCash < -0.0000001) {
+                    if (!Double.isFinite(availableCash) || availableCash < -0.005) {
                         return Transaction.abort();
                     }
                 }

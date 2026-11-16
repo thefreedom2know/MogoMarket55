@@ -81,6 +81,17 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/stockPnlPercent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:contentDescription="Change since entry"
+                    android:maxLines="1"
+                    android:textColor="#34D399"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
                     android:id="@+id/stockHoldingDays"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

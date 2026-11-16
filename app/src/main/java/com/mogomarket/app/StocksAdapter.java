@@ -73,7 +73,6 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
     private final Map<String, StockViewHolder> visibleHolders = new HashMap<>();
     private double cashBalance;
     private final OkHttpClient client = new OkHttpClient();
-    private static final String FINNHUB_KEY = "d918pn9r01qr1uqui560d918pn9r01qr1uqui56g";
 
     public StocksAdapter(List<StockData> stocks, OnStockClickListener listener) {
         this.stocks = stocks;
@@ -189,6 +188,8 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
         holder.cardView.setStrokeColor(Color.argb(75, Color.red(accentColor),
                 Color.green(accentColor), Color.blue(accentColor)));
         holder.trendView.setChangePercent(0, accentColor);
+        holder.pnlPercentText.setText("--");
+        holder.pnlPercentText.setTextColor(Color.rgb(141, 154, 174));
         holder.allocationRing.setPercent(0, accentColor);
 
         String sym = (stock.symbol != null) ? stock.symbol.trim() : "?";
@@ -549,6 +550,12 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
                     textPrimary, textSecondary, colorNeutral);
             return;
         }
+        if (BuildConfig.FINNHUB_KEY == null || BuildConfig.FINNHUB_KEY.trim().isEmpty()) {
+            // No Finnhub key configured: use the free Yahoo chart API instead.
+            fetchYahooQuote(symbol, stock, holder, colorGain, colorLoss,
+                    textPrimary, textSecondary, colorNeutral);
+            return;
+        }
         String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
         String url = "https://finnhub.io/api/v1/quote?symbol=" + encodedSymbol
                 + "&token=" + BuildConfig.FINNHUB_KEY;
@@ -588,7 +595,14 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
     private void fetchSpxQuote(StockData stock, StockViewHolder holder,
                                int colorGain, int colorLoss, int textPrimary,
                                int textSecondary, int colorNeutral) {
-        String encodedSymbol = URLEncoder.encode("^GSPC", StandardCharsets.UTF_8);
+        fetchYahooQuote("^GSPC", stock, holder, colorGain, colorLoss,
+                textPrimary, textSecondary, colorNeutral);
+    }
+
+    private void fetchYahooQuote(String yahooSymbol, StockData stock, StockViewHolder holder,
+                                 int colorGain, int colorLoss, int textPrimary,
+                                 int textSecondary, int colorNeutral) {
+        String encodedSymbol = URLEncoder.encode(yahooSymbol, StandardCharsets.UTF_8);
         String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodedSymbol
                 + "?range=5d&interval=1d&includePrePost=false";
         client.newCall(new Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build())
@@ -708,6 +722,11 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
         });
         holder.trendView.post(() -> holder.trendView.setChangePercent(
                 totalChangePercent, holder.accentColor));
+        holder.pnlPercentText.post(() -> {
+            holder.pnlPercentText.setText(String.format(Locale.US, "%s%.2f%%",
+                    totalSign, Math.abs(totalChangePercent)));
+            holder.pnlPercentText.setTextColor(gainLossColor);
+        });
 
         if (stock.tradeAmount > 0) {
             holder.pnlDollarText.post(() -> {
@@ -866,6 +885,10 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
                 Toast.makeText(context, "Enter valid numeric trade values", Toast.LENGTH_SHORT).show();
                 return;
             }
+            // Keep the exact stored values when the user did not change them (the dialog shows cents only).
+            if (Math.abs(tradeAmount - stock.tradeAmount) < 0.005) tradeAmount = stock.tradeAmount;
+            if (Math.abs(entryFees - stock.entryFees) < 0.005) entryFees = stock.entryFees;
+            if (Math.abs(buyPrice - stock.buyPrice) < 0.005f) buyPrice = stock.buyPrice;
             if (!Float.isFinite(buyPrice) || buyPrice <= 0
                     || !Double.isFinite(tradeAmount) || tradeAmount < 0
                     || !Float.isFinite(targetPrice) || targetPrice < 0
@@ -958,6 +981,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
         TextView symbolText, currentPriceText, changePercentText;
         TextView changePercentDetailText, buyPriceText, targetPriceText, stopLossPriceText;
         TextView riskRewardText, holdingDaysText, pnlDollarText, stockNameText, notesText;
+        TextView pnlPercentText;
         TextView strategyTagText;
         TextView sectorText;
         TextView pnlLabel;
@@ -986,6 +1010,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
             stopLossPriceText       = itemView.findViewById(R.id.stockStopLossPrice);
             riskRewardText          = itemView.findViewById(R.id.stockRiskReward);
             holdingDaysText         = itemView.findViewById(R.id.stockHoldingDays);
+            pnlPercentText          = itemView.findViewById(R.id.stockPnlPercent);
             pnlDollarText           = itemView.findViewById(R.id.stockPnlDollar);
             stockNameText           = itemView.findViewById(R.id.stockName);
             notesText               = itemView.findViewById(R.id.stockNotes);

@@ -63,6 +63,16 @@
             android:textSize="12sp"
             android:textStyle="bold" />
 
+        <TextView
+            android:id="@+id/stockExtendedText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textSize="11sp"
+            android:visibility="gone" />
+
         <com.mogomarket.app.WatchlistSparklineView
             android:id="@+id/watchlistSparkline"
             android:layout_width="match_parent"
