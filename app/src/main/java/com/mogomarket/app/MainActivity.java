@@ -128,6 +128,10 @@ public class MainActivity extends AppCompatActivity {
                 NavOptions options = new NavOptions.Builder()
                         .setLaunchSingleTop(true)
                         .setRestoreState(true)
+                        .setEnterAnim(R.anim.nav_fade_in)
+                        .setExitAnim(R.anim.nav_fade_out)
+                        .setPopEnterAnim(R.anim.nav_fade_in)
+                        .setPopExitAnim(R.anim.nav_fade_out)
                         .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
                         .build();
                 navController.navigate(destinationId, null, options);

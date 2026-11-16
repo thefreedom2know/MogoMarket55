@@ -29,8 +29,6 @@ import com.google.firebase.auth.FirebaseUser;
  */
 public class SplashActivity extends AppCompatActivity {
 
-    private static final long LOGO_BUILD_DURATION_MS = 1_500L;
-    private static final long TRANSITION_DURATION_MS = 800L;
     private android.animation.AnimatorSet splashAnimation;
     private boolean navigated;
 
@@ -54,56 +52,55 @@ public class SplashActivity extends AppCompatActivity {
         });
 
         View logo = findViewById(R.id.splashLogo);
+        View glow = findViewById(R.id.splashGlow);
         View title = findViewById(R.id.splashTitle);
+        View tagline = findViewById(R.id.splashTagline);
         SplashGraphView graph = findViewById(R.id.splashGraph);
+        android.view.animation.Interpolator smooth =
+                new android.view.animation.PathInterpolator(0.4f, 0f, 0.2f, 1f);
 
-        ObjectAnimator ignite = ObjectAnimator.ofFloat(
-                logo, View.ALPHA, 0f, 0.12f, 0.03f, 0.52f, 0.18f, 1f);
-        ignite.setDuration(600L);
-        ignite.setInterpolator(new DecelerateInterpolator(0.7f));
-        ignite.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                logo.setAlpha(1f);
-            }
-        });
+        // Logo and its glow fade and settle in (about 0.45 s).
+        ObjectAnimator logoFade = ObjectAnimator.ofFloat(logo, View.ALPHA, 0f, 1f);
+        logoFade.setDuration(350L);
+        ObjectAnimator logoScaleX = ObjectAnimator.ofFloat(logo, View.SCALE_X, 0.82f, 1f);
+        ObjectAnimator logoScaleY = ObjectAnimator.ofFloat(logo, View.SCALE_Y, 0.82f, 1f);
+        logoScaleX.setDuration(450L);
+        logoScaleY.setDuration(450L);
+        logoScaleX.setInterpolator(new android.view.animation.OvershootInterpolator(1.2f));
+        logoScaleY.setInterpolator(new android.view.animation.OvershootInterpolator(1.2f));
 
-        ObjectAnimator logoScaleX = ObjectAnimator.ofFloat(
-                logo, View.SCALE_X, 0.88f, 1.04f, 1f);
-        ObjectAnimator logoScaleY = ObjectAnimator.ofFloat(
-                logo, View.SCALE_Y, 0.88f, 1.04f, 1f);
-        logoScaleX.setDuration(800L);
-        logoScaleY.setDuration(800L);
-        logoScaleX.setInterpolator(new DecelerateInterpolator(1.4f));
-        logoScaleY.setInterpolator(new DecelerateInterpolator(1.4f));
+        ObjectAnimator glowFade = ObjectAnimator.ofFloat(glow, View.ALPHA, 0f, 1f);
+        ObjectAnimator glowScaleX = ObjectAnimator.ofFloat(glow, View.SCALE_X, 0.7f, 1f);
+        ObjectAnimator glowScaleY = ObjectAnimator.ofFloat(glow, View.SCALE_Y, 0.7f, 1f);
+        glowFade.setDuration(450L);
+        glowScaleX.setDuration(550L);
+        glowScaleY.setDuration(550L);
+        glowScaleX.setInterpolator(smooth);
+        glowScaleY.setInterpolator(smooth);
 
+        // The chart line draws across the bottom while the text appears.
         ValueAnimator graphBuild = ValueAnimator.ofFloat(0f, 1f);
-        graphBuild.setStartDelay(500L);
-        graphBuild.setDuration(LOGO_BUILD_DURATION_MS - 500L);
+        graphBuild.setStartDelay(120L);
+        graphBuild.setDuration(720L);
+        graphBuild.setInterpolator(smooth);
         graphBuild.addUpdateListener(value ->
                 graph.setProgress((float) value.getAnimatedValue()));
 
         ObjectAnimator titleFade = ObjectAnimator.ofFloat(title, View.ALPHA, 0f, 1f);
-        ObjectAnimator titleRise = ObjectAnimator.ofFloat(title, View.TRANSLATION_Y, 16f, 0f);
-        titleFade.setStartDelay(850L);
-        titleRise.setStartDelay(850L);
-        titleFade.setDuration(500L);
-        titleRise.setDuration(500L);
-        titleFade.setInterpolator(new DecelerateInterpolator(1.4f));
-        titleRise.setInterpolator(new DecelerateInterpolator(1.4f));
+        ObjectAnimator titleRise = ObjectAnimator.ofFloat(title, View.TRANSLATION_Y, 14f, 0f);
+        titleFade.setStartDelay(180L);
+        titleRise.setStartDelay(180L);
+        titleFade.setDuration(340L);
+        titleRise.setDuration(340L);
+        titleRise.setInterpolator(smooth);
 
-        ObjectAnimator logoZoomX = ObjectAnimator.ofFloat(logo, View.SCALE_X, 1f, 1.38f);
-        ObjectAnimator logoZoomY = ObjectAnimator.ofFloat(logo, View.SCALE_Y, 1f, 1.38f);
-        logoZoomX.setStartDelay(LOGO_BUILD_DURATION_MS);
-        logoZoomY.setStartDelay(LOGO_BUILD_DURATION_MS);
-        logoZoomX.setDuration(TRANSITION_DURATION_MS);
-        logoZoomY.setDuration(TRANSITION_DURATION_MS);
-        logoZoomX.setInterpolator(new DecelerateInterpolator(1.5f));
-        logoZoomY.setInterpolator(new DecelerateInterpolator(1.5f));
+        ObjectAnimator taglineFade = ObjectAnimator.ofFloat(tagline, View.ALPHA, 0f, 1f);
+        taglineFade.setStartDelay(320L);
+        taglineFade.setDuration(300L);
 
         android.animation.AnimatorSet sequence = new android.animation.AnimatorSet();
-        sequence.playTogether(ignite, logoScaleX, logoScaleY, graphBuild,
-                titleFade, titleRise, logoZoomX, logoZoomY);
+        sequence.playTogether(logoFade, logoScaleX, logoScaleY, glowFade, glowScaleX, glowScaleY,
+                graphBuild, titleFade, titleRise, taglineFade);
         sequence.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
@@ -112,6 +109,9 @@ public class SplashActivity extends AppCompatActivity {
         });
         sequence.start();
         splashAnimation = sequence;
+
+        // Tap anywhere to skip.
+        findViewById(R.id.splashRoot).setOnClickListener(v -> navigate());
     }
 
     private void navigate() {

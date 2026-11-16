@@ -3,7 +3,7 @@
     android:id="@+id/splashRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#07090D">
+    android:background="@drawable/bg_splash_gradient">
 
     <com.mogomarket.app.SplashGraphView
         android:id="@+id/splashGraph"
@@ -14,25 +14,53 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_marginBottom="60dp"
         android:gravity="center"
         android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/splashLogo"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:alpha="0"
-            android:src="@drawable/ic_nav_chart" />
+        <FrameLayout
+            android:layout_width="150dp"
+            android:layout_height="150dp">
+
+            <View
+                android:id="@+id/splashGlow"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:alpha="0"
+                android:background="@drawable/bg_splash_glow" />
+
+            <ImageView
+                android:id="@+id/splashLogo"
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:layout_gravity="center"
+                android:alpha="0"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_nav_chart" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/splashTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="4dp"
             android:alpha="0"
+            android:letterSpacing="0.06"
             android:text="MogoMarket"
             android:textColor="#FFFFFF"
-            android:textSize="28sp"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/splashTagline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:alpha="0"
+            android:letterSpacing="0.12"
+            android:text="TRADE SMARTER"
+            android:textColor="#8D9AAE"
+            android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
 </FrameLayout>
