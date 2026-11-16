@@ -63,7 +63,7 @@ public class PortfolioHeroChartView extends View {
         fill.lineTo(0, h);
         fill.close();
         fillPaint.setShader(new LinearGradient(0, 0, 0, h,
-                0x55FFB84D, 0x00FFB84D, Shader.TileMode.CLAMP));
+                0xAAFFB84D, 0x10FFB84D, Shader.TileMode.CLAMP));
     }
 
     @Override

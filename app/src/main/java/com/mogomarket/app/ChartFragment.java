@@ -238,6 +238,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private final List<Entry> movingAverageEntries = new ArrayList<>();
     private boolean showMa150;
     private boolean showVolume;
+    private boolean volumeColorByOpen; // false: vs previous close (daily), true: open to close
     private final List<Float> currentVolumes = new ArrayList<>();
     private List<Float> pendingVolumes = new ArrayList<>();
     private float lastPrice = 0f;
@@ -348,6 +349,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         isChartDark = isDarkTheme;
         showMa150 = prefs.getBoolean("chart_show_ma150", false);
         showVolume = prefs.getBoolean("chart_show_volume", true);
+        volumeColorByOpen = prefs.getBoolean("chart_volume_color_open", false);
         currentTFIndex = getTimeframeIndex(
                 prefs.getString(KEY_DEFAULT_TIMEFRAME, "1Y"));
         visibleChartRange = TIMEFRAMES[currentTFIndex][3];
@@ -1193,6 +1195,12 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 showVolume ? "Shown on candlestick chart" : "Currently off",
                 primaryText, secondaryText, surface,
                 this::toggleVolume, dialogHolder);
+        if (showVolume) {
+            addChartMenuOption(content, "◐", "Volume colors",
+                    volumeColorByOpen ? "By candle (open → close)" : "By daily change (vs previous close)",
+                    primaryText, secondaryText, surface,
+                    this::toggleVolumeColorMode, dialogHolder);
+        }
         addChartMenuOption(content, "✦", "AI analysis",
                 "Ask Gemini about " + symbol, primaryText, secondaryText, surface,
                 () -> AiChatDialog.show(requireContext(),
@@ -1224,6 +1232,13 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             buttons[i].setTextColor(requireContext().getColor(selected
                     ? R.color.primary : R.color.chart_tf_text));
         }
+    }
+
+    private void toggleVolumeColorMode() {
+        volumeColorByOpen = !volumeColorByOpen;
+        requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean("chart_volume_color_open", volumeColorByOpen).apply();
+        if (!currentEntries.isEmpty() && isCandleStick) updateCandleChart(currentEntries);
     }
 
     private void toggleVolume() {
@@ -1389,6 +1404,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         dataSet.setHighlightEnabled(true);
         dataSet.setHighLightColor(COLOR_PRIMARY);
         dataSet.enableDashedHighlightLine(10f, 5f, 0f);
+        candleStickChart.highlightValues(null);
         CandleData candleData = new CandleData(dataSet);
         CombinedData combinedData = new CombinedData();
         combinedData.setData(candleData);
@@ -1405,7 +1421,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 float v = Math.max(0f, currentVolumes.get(i));
                 maxVolume = Math.max(maxVolume, v);
                 bars.add(new BarEntry(entries.get(i).getX(), v));
-                boolean up = entries.get(i).getClose() >= entries.get(i).getOpen();
+                float reference = volumeColorByOpen || i == 0
+                        ? entries.get(i).getOpen() : entries.get(i - 1).getClose();
+                boolean up = entries.get(i).getClose() >= reference;
                 barColors[i] = (up ? COLOR_GAIN : COLOR_LOSS) & 0x00FFFFFF | 0x66000000;
             }
             if (maxVolume > 0f) {
@@ -1422,6 +1440,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 right.setAxisMaximum(maxVolume * 4.5f); // bars stay in the bottom ~22%
                 volumeShown = true;
             }
+        }
+        if (!volumeShown) {
+            candleStickChart.getAxisRight().resetAxisMinimum();
+            candleStickChart.getAxisRight().resetAxisMaximum();
         }
         candleStickChart.setDrawOrder(volumeShown
                 ? (movingAverageEntries.isEmpty()
@@ -1453,6 +1475,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         ds.setDrawFilled(true);
         ds.setFillColor(COLOR_FILL);
         ds.setFillAlpha(isChartDark ? 90 : 50);
+        lineChart.highlightValues(null);
         LineData lineData = new LineData(ds);
         if (!movingAverageEntries.isEmpty()) {
             lineData.addDataSet(createMovingAverageDataSet());

@@ -17,11 +17,11 @@
             android:layout_width="match_parent"
             android:layout_height="190dp"
             android:layout_marginBottom="12dp"
-            app:cardBackgroundColor="#2A1D05"
+            app:cardBackgroundColor="#0C1018"
             app:cardCornerRadius="22dp"
             app:cardElevation="0dp"
-            app:strokeColor="#CCFFB84D"
-            app:strokeWidth="1.5dp">
+            app:strokeColor="#66FFB84D"
+            app:strokeWidth="1dp">
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -30,7 +30,7 @@
                 <com.mogomarket.app.PortfolioHeroChartView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:alpha="0.82" />
+                    android:alpha="1" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -44,7 +44,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Portfolio Value"
-                        android:textColor="#FFD27A"
+                        android:textColor="#63D7F2"
                         android:textSize="24sp"
                         android:textStyle="bold" />
 
