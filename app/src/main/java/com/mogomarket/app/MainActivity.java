@@ -132,10 +132,11 @@ public class MainActivity extends AppCompatActivity {
                 NavOptions options = new NavOptions.Builder()
                         .setLaunchSingleTop(true)
                         .setRestoreState(true)
-                        .setEnterAnim(R.anim.nav_fade_in)
-                        .setExitAnim(R.anim.nav_fade_out)
-                        .setPopEnterAnim(R.anim.nav_fade_in)
-                        .setPopExitAnim(R.anim.nav_fade_out)
+                        // No cross-fade: it briefly exposed the background and looked like a flicker.
+                        .setEnterAnim(0)
+                        .setExitAnim(0)
+                        .setPopEnterAnim(0)
+                        .setPopExitAnim(0)
                         .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
                         .build();
                 navController.navigate(destinationId, null, options);
