@@ -1,228 +1,221 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<com.mogomarket.app.PullRefreshLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/chartRootLayout"
+    android:id="@+id/pullRefresh"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?attr/colorBackground"
-    android:paddingHorizontal="10dp"
-    android:paddingTop="8dp"
-    tools:context=".ChartFragment">
-
-    <View android:id="@+id/searchSection" android:layout_width="match_parent" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/timeFrameText" android:layout_width="match_parent" android:layout_height="0dp" android:text="" android:visibility="gone" />
-    <Button android:id="@+id/btnChartThemeToggle" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:minWidth="0dp" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/btnSettings" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:minWidth="0dp" android:minHeight="0dp" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/btnExpandChart" style="@style/Widget.Material3.Button.IconButton" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Fullscreen" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/btnSelectTimeFrame" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView
-        android:id="@+id/tickerLabelTop"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        android:text="SPY" />
-    <TextView android:id="@+id/tickerText" android:layout_width="0dp" android:layout_height="0dp" android:text="" android:visibility="gone" />
-    <TextView android:id="@+id/currentPriceDisplay" android:layout_width="0dp" android:layout_height="0dp" android:text="" android:visibility="gone" />
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/chartContainer"
+    android:layout_height="match_parent">
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/chartRootLayout"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginBottom="8dp"
-        app:cardBackgroundColor="@color/chart_surface"
-        app:cardCornerRadius="28dp"
-        app:cardElevation="0dp"
-        app:strokeColor="@color/chart_gold"
-        app:strokeWidth="1dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="?attr/colorBackground"
+        android:paddingHorizontal="10dp"
+        android:paddingTop="8dp"
+        tools:context=".ChartFragment">
 
-        <FrameLayout
+        <View android:id="@+id/searchSection" android:layout_width="match_parent" android:layout_height="0dp" android:visibility="gone" />
+        <TextView android:id="@+id/timeFrameText" android:layout_width="match_parent" android:layout_height="0dp" android:text="" android:visibility="gone" />
+        <Button android:id="@+id/btnChartThemeToggle" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:minWidth="0dp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnSettings" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:minWidth="0dp" android:minHeight="0dp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnExpandChart" style="@style/Widget.Material3.Button.IconButton" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" android:contentDescription="Fullscreen" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnSelectTimeFrame" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+        <TextView
+            android:id="@+id/tickerLabelTop"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:text="SPY" />
+        <TextView android:id="@+id/tickerText" android:layout_width="0dp" android:layout_height="0dp" android:text="" android:visibility="gone" />
+        <TextView android:id="@+id/currentPriceDisplay" android:layout_width="0dp" android:layout_height="0dp" android:text="" android:visibility="gone" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/chartContainer"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="8dp"
+            app:cardBackgroundColor="@color/chart_surface"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/chart_gold"
+            app:strokeWidth="1dp">
 
-            <com.github.mikephil.charting.charts.CombinedChart
-                android:id="@+id/stock_chart"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginTop="112dp"
-                android:layout_marginBottom="4dp"
-                android:background="@android:color/transparent" />
+                android:layout_height="match_parent">
 
-            <com.github.mikephil.charting.charts.LineChart
-                android:id="@+id/line_chart"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginTop="112dp"
-                android:layout_marginBottom="4dp"
-                android:background="@android:color/transparent"
-                android:visibility="gone" />
+                <com.github.mikephil.charting.charts.CombinedChart
+                    android:id="@+id/stock_chart"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="112dp"
+                    android:layout_marginBottom="4dp"
+                    android:background="@android:color/transparent" />
 
-            <com.github.mikephil.charting.charts.LineChart
-                android:id="@+id/portfolio_chart"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginTop="112dp"
-                android:layout_marginBottom="4dp"
-                android:background="@android:color/transparent"
-                android:visibility="gone" />
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/line_chart"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="112dp"
+                    android:layout_marginBottom="4dp"
+                    android:background="@android:color/transparent"
+                    android:visibility="gone" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="top"
-                android:gravity="center_horizontal"
-                android:orientation="vertical"
-                android:paddingTop="10dp">
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/portfolio_chart"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="112dp"
+                    android:layout_marginBottom="4dp"
+                    android:background="@android:color/transparent"
+                    android:visibility="gone" />
 
-                <TextView
-                    android:id="@+id/chartTickerTitle"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:paddingTop="10dp">
+
+                    <TextView
+                        android:id="@+id/chartTickerTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SPY"
+                        android:textColor="@color/chart_text"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/priceText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="$0.00"
+                        android:textColor="@color/chart_price"
+                        android:textSize="30sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/changeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:background="@drawable/bg_chart_change_pill"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="4dp"
+                        android:text="--"
+                        android:textColor="@color/chart_loss"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <com.mogomarket.app.FreeCrosshairOverlay
+                    android:id="@+id/freeCrosshairOverlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/crosshairInfoBar"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="SPY"
-                    android:textColor="@color/chart_text"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/priceText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="$0.00"
-                    android:textColor="@color/chart_price"
-                    android:textSize="30sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/changeText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_chart_change_pill"
-                    android:paddingHorizontal="12dp"
+                    android:layout_gravity="top|start"
+                    android:layout_margin="8dp"
+                    android:background="#CC151C2E"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp"
                     android:paddingVertical="4dp"
-                    android:text="--"
-                    android:textColor="@color/chart_loss"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                    android:visibility="gone">
+                    <TextView android:id="@+id/crosshairPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/chart_text" android:textStyle="bold" android:textSize="12sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="  ·  " android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <TextView android:id="@+id/crosshairDate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                </LinearLayout>
 
-            <com.mogomarket.app.FreeCrosshairOverlay
-                android:id="@+id/freeCrosshairOverlay"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:importantForAccessibility="no"
-                android:visibility="gone" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnExitFullscreen"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="8dp"
+                    android:backgroundTint="#AA151C2E"
+                    android:contentDescription="Exit fullscreen"
+                    android:visibility="gone"
+                    app:icon="@drawable/baseline_fullscreen_exit_24"
+                    app:iconTint="@color/chart_text" />
+            </FrameLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-            <LinearLayout
-                android:id="@+id/crosshairInfoBar"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="top|start"
-                android:layout_margin="8dp"
-                android:background="#CC151C2E"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:visibility="gone">
-                <TextView android:id="@+id/crosshairPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/chart_text" android:textStyle="bold" android:textSize="12sp" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="  ·  " android:textColor="@color/text_secondary" android:textSize="12sp" />
-                <TextView android:id="@+id/crosshairDate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/text_secondary" android:textSize="12sp" />
-            </LinearLayout>
+        <LinearLayout
+            android:id="@+id/headerSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:gravity="center_vertical"
+            android:layoutDirection="ltr"
+            android:orientation="horizontal">
+
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnExitFullscreen"
-                style="@style/Widget.Material3.Button.IconButton"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_gravity="top|end"
-                android:layout_margin="8dp"
-                android:backgroundTint="#AA151C2E"
-                android:contentDescription="Exit fullscreen"
-                android:visibility="gone"
-                app:icon="@drawable/baseline_fullscreen_exit_24"
-                app:iconTint="@color/chart_text" />
-        </FrameLayout>
-    </com.google.android.material.card.MaterialCardView>
+                android:id="@+id/btnChartMenu"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="12dp"
+                android:contentDescription="More chart controls"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:text="Options"
+                android:textColor="@color/chart_text"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                app:icon="@drawable/ic_chart_options"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconTint="@color/chart_text"
+                app:strokeColor="@color/chart_gold"
+                app:strokeWidth="1dp"
+                app:cornerRadius="20dp" />
 
-    <LinearLayout
-        android:id="@+id/headerSection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="4dp"
-        android:gravity="center_vertical"
-        android:layoutDirection="ltr"
-        android:orientation="horizontal">
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTickerSelect"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:minWidth="96dp"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:text="SPY"
+                android:textAllCaps="false"
+                android:textColor="@color/chart_ticker_text"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/chart_gold"
+                app:cornerRadius="22dp"
+                app:strokeWidth="0dp" />
+        </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnChartRefresh"
-            style="@style/Widget.Material3.Button.IconButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:contentDescription="Refresh chart"
-            android:insetLeft="0dp"
-            android:insetTop="0dp"
-            android:insetRight="0dp"
-            android:insetBottom="0dp"
-            app:icon="@drawable/baseline_refresh_24"
-            app:iconTint="@color/chart_text"
-            app:iconSize="20dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnChartMenu"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:minWidth="0dp"
-            android:paddingHorizontal="12dp"
-            android:contentDescription="More chart controls"
-            android:insetLeft="0dp"
-            android:insetTop="0dp"
-            android:insetRight="0dp"
-            android:insetBottom="0dp"
-            android:text="Options"
-            android:textColor="@color/chart_text"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            app:icon="@drawable/ic_chart_options"
-            app:iconGravity="textStart"
-            app:iconPadding="6dp"
-            app:iconTint="@color/chart_text"
-            app:strokeColor="@color/chart_gold"
-            app:strokeWidth="1dp"
-            app:cornerRadius="20dp" />
-
-        <View
+            android:id="@+id/btnTimeframePicker"
             android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnTickerSelect"
-            android:layout_width="wrap_content"
-            android:layout_height="38dp"
-            android:minWidth="96dp"
-            android:insetLeft="0dp"
-            android:insetTop="0dp"
-            android:insetRight="0dp"
-            android:insetBottom="0dp"
-            android:text="SPY"
-            android:textAllCaps="false"
-            android:textColor="@color/chart_ticker_text"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            app:backgroundTint="@color/chart_gold"
-            app:cornerRadius="22dp"
-            app:strokeWidth="0dp" />
+            android:layout_height="0dp"
+            android:visibility="gone" />
+        <View android:id="@+id/bottomBar" android:layout_width="match_parent" android:layout_height="0dp" android:visibility="gone" />
     </LinearLayout>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnTimeframePicker"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone" />
-    <View android:id="@+id/bottomBar" android:layout_width="match_parent" android:layout_height="0dp" android:visibility="gone" />
-</LinearLayout>
+</com.mogomarket.app.PullRefreshLayout>

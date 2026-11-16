@@ -1,188 +1,177 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<com.mogomarket.app.PullRefreshLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/pullRefresh"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="?attr/colorBackground"
-    android:orientation="vertical"
-    android:paddingHorizontal="10dp"
-    android:paddingTop="12dp">
-
+    android:layout_height="match_parent">
     <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:background="?attr/colorBackground"
+        android:orientation="vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingTop="12dp">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Watchlist"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="28sp"
-                android:textStyle="bold" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Track your favorite markets"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Watchlist"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="28sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Track your favorite markets"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
         </LinearLayout>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="SORT &amp; FILTER"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/sortChipGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="false">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSortGain"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Gainers" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSortLoss"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Losers" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSortAlpha"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="A-Z" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSortOrder"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/watchlist_add_icon"
+                    android:text="Default"
+                    app:chipBackgroundColor="@color/watchlist_gold" />
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:id="@+id/addStockSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:hint="Ticker symbol (e.g. AAPL)"
+                app:boxCornerRadiusBottomEnd="14dp"
+                app:boxCornerRadiusBottomStart="14dp"
+                app:boxCornerRadiusTopEnd="14dp"
+                app:boxCornerRadiusTopStart="14dp">
+
+                <AutoCompleteTextView
+                    android:id="@+id/stockAutoInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:completionThreshold="1"
+                    android:dropDownVerticalOffset="2dp"
+                    android:imeOptions="actionDone"
+                    android:inputType="textCapCharacters"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:popupBackground="?attr/colorSurface"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/addStockBtn"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:text="Add"
+                android:textAllCaps="false"
+                app:cornerRadius="14dp" />
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/watchlistRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:scrollbars="none" />
+
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRefreshWatchlist"
-            style="@style/Widget.Material3.Button.IconButton.Outlined"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:contentDescription="Refresh watchlist prices"
+            android:id="@+id/btnToggleAddStock"
+            style="@style/Widget.Material3.Button.IconButton.Filled"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Open add stock"
+            android:gravity="center"
             android:insetLeft="0dp"
             android:insetTop="0dp"
             android:insetRight="0dp"
             android:insetBottom="0dp"
-            app:cornerRadius="14dp"
-            app:icon="@drawable/baseline_refresh_24"
+            android:padding="0dp"
+            app:backgroundTint="@color/watchlist_gold"
+            app:cornerRadius="24dp"
+            app:icon="@drawable/ic_add_24"
+            app:iconGravity="textStart"
             app:iconPadding="0dp"
-            app:iconSize="20dp"
-            app:iconTint="?attr/colorPrimary"
-            app:strokeColor="@color/colorBorder"
-            app:strokeWidth="1dp" />
+            app:iconSize="24dp"
+            app:iconTint="@color/watchlist_add_icon" />
     </LinearLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:text="SORT &amp; FILTER"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="11sp"
-        android:textStyle="bold" />
-
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:scrollbars="none">
-
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/sortChipGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:singleSelection="true"
-            app:selectionRequired="false">
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipSortGain"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Gainers" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipSortLoss"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Losers" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipSortAlpha"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="A-Z" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chipSortOrder"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/watchlist_add_icon"
-                android:text="Default"
-                app:chipBackgroundColor="@color/watchlist_gold" />
-        </com.google.android.material.chip.ChipGroup>
-    </HorizontalScrollView>
-
-    <LinearLayout
-        android:id="@+id/addStockSection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:visibility="gone">
-
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:hint="Ticker symbol (e.g. AAPL)"
-            app:boxCornerRadiusBottomEnd="14dp"
-            app:boxCornerRadiusBottomStart="14dp"
-            app:boxCornerRadiusTopEnd="14dp"
-            app:boxCornerRadiusTopStart="14dp">
-
-            <AutoCompleteTextView
-                android:id="@+id/stockAutoInput"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:completionThreshold="1"
-                android:dropDownVerticalOffset="2dp"
-                android:imeOptions="actionDone"
-                android:inputType="textCapCharacters"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:popupBackground="?attr/colorSurface"
-                android:textColor="?attr/colorOnSurface"
-                android:textColorHint="?attr/colorOnSurfaceVariant" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/addStockBtn"
-            style="@style/Widget.Material3.Button"
-            android:layout_width="wrap_content"
-            android:layout_height="52dp"
-            android:text="Add"
-            android:textAllCaps="false"
-            app:cornerRadius="14dp" />
-    </LinearLayout>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/watchlistRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"
-        android:scrollbars="none" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnToggleAddStock"
-        style="@style/Widget.Material3.Button.IconButton.Filled"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginEnd="8dp"
-        android:contentDescription="Open add stock"
-        android:gravity="center"
-        android:insetLeft="0dp"
-        android:insetTop="0dp"
-        android:insetRight="0dp"
-        android:insetBottom="0dp"
-        android:padding="0dp"
-        app:backgroundTint="@color/watchlist_gold"
-        app:cornerRadius="24dp"
-        app:icon="@drawable/ic_add_24"
-        app:iconGravity="textStart"
-        app:iconPadding="0dp"
-        app:iconSize="24dp"
-        app:iconTint="@color/watchlist_add_icon" />
-</LinearLayout>
+</com.mogomarket.app.PullRefreshLayout>

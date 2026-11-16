@@ -1,307 +1,313 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<com.mogomarket.app.PullRefreshLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/pullRefresh"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?attr/colorBackground"
-    android:paddingHorizontal="8dp"
-    android:paddingTop="8dp">
-
-    <!-- Header -->
+    android:layout_height="match_parent">
     <LinearLayout
-        android:id="@+id/summaryHeader"
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="?attr/colorBackground"
         android:paddingHorizontal="8dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="10dp">
+        android:paddingTop="8dp">
 
+        <!-- Header -->
         <LinearLayout
+            android:id="@+id/summaryHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:background="?attr/colorBackground"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="10dp">
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Closed Trades"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.05" />
-
-            <TextView
-                android:id="@+id/tvBestStrategy"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_pill_glow_gold"
-                android:ellipsize="end"
-                android:maxWidth="150dp"
-                android:maxLines="1"
-                android:paddingHorizontal="9dp"
-                android:paddingVertical="5dp"
-                android:text="Best setup: —"
-                android:textColor="#FFD64A"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="12dp">
-
-            <!-- Total P&L -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/bg_stat_cyan"
-                android:padding="14dp"
-                android:layout_marginEnd="6dp">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="TOTAL P&amp;L"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="10sp"
-                    android:letterSpacing="0.1"/>
-                <TextView
-                    android:id="@+id/totalPnlText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="$0.00"
-                    android:textColor="@color/colorProfit"
-                    android:textSize="20sp"
+                    android:layout_weight="1"
+                    android:text="Closed Trades"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="22sp"
                     android:textStyle="bold"
-                    android:layout_marginTop="4dp"/>
-            </LinearLayout>
+                    android:letterSpacing="0.05" />
 
-            <!-- Win Rate -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/bg_stat_gold"
-                android:padding="14dp"
-                android:layout_marginStart="6dp">
                 <TextView
+                    android:id="@+id/tvBestStrategy"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="WIN RATE"
-                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:background="@drawable/bg_pill_glow_gold"
+                    android:ellipsize="end"
+                    android:maxWidth="150dp"
+                    android:maxLines="1"
+                    android:paddingHorizontal="9dp"
+                    android:paddingVertical="5dp"
+                    android:text="Best setup: —"
+                    android:textColor="#FFD64A"
                     android:textSize="10sp"
-                    android:letterSpacing="0.1"/>
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp">
+
+                <!-- Total P&L -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_stat_cyan"
+                    android:padding="14dp"
+                    android:layout_marginEnd="6dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="TOTAL P&amp;L"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp"
+                        android:letterSpacing="0.1"/>
+                    <TextView
+                        android:id="@+id/totalPnlText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="$0.00"
+                        android:textColor="@color/colorProfit"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <!-- Win Rate -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_stat_gold"
+                    android:padding="14dp"
+                    android:layout_marginStart="6dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="WIN RATE"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp"
+                        android:letterSpacing="0.1"/>
+                    <TextView
+                        android:id="@+id/winRateText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- שורת סיכום: עסקאות + P&L + Invested -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical">
+
                 <TextView
-                    android:id="@+id/winRateText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0%"
+                    android:text="Total transactions: "
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="13sp"/>
+
+                <TextView
+                    android:id="@+id/tvClosedTradeCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
                     android:textColor="?attr/colorOnSurface"
-                    android:textSize="20sp"
+                    android:textSize="13sp"
                     android:textStyle="bold"
-                    android:layout_marginTop="4dp"/>
+                    android:layout_marginEnd="12dp"/>
+
             </LinearLayout>
 
-        </LinearLayout>
-
-        <!-- שורת סיכום: עסקאות + P&L + Invested -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="10dp"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Total transactions: "
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp"/>
-
-            <TextView
-                android:id="@+id/tvClosedTradeCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_marginEnd="12dp"/>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/bg_metric_card"
-                android:padding="9dp"
-                android:layout_marginEnd="4dp">
-                <TextView
-                    android:layout_width="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="PROFIT FACTOR"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="10sp" />
-                <TextView
-                    android:id="@+id/tvProfitFactor"
-                    android:layout_width="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_metric_card"
+                    android:padding="9dp"
+                    android:layout_marginEnd="4dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PROFIT FACTOR"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/tvProfitFactor"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_metric_card"
+                    android:padding="9dp"
+                    android:layout_marginStart="4dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AVG HOLD"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/tvAverageHolding"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="— / —"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
+
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/bg_metric_card"
-                android:padding="9dp"
-                android:layout_marginStart="4dp">
-                <TextView
-                    android:layout_width="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="AVG HOLD"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="10sp" />
-                <TextView
-                    android:id="@+id/tvAverageHolding"
-                    android:layout_width="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_metric_card"
+                    android:padding="9dp"
+                    android:layout_marginEnd="4dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AVG WIN / LOSS"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/tvAverageWinLoss"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="— / —"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_metric_card"
+                    android:padding="9dp"
+                    android:layout_marginStart="4dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="MAX DRAWDOWN"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="10sp" />
+                    <TextView
+                        android:id="@+id/tvMaxDrawdown"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="horizontal">
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/bg_metric_card"
-                android:padding="9dp"
-                android:layout_marginEnd="4dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AVG WIN / LOSS"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="10sp" />
-                <TextView
-                    android:id="@+id/tvAverageWinLoss"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/bg_metric_card"
-                android:padding="9dp"
-                android:layout_marginStart="4dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="MAX DRAWDOWN"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="10sp" />
-                <TextView
-                    android:id="@+id/tvMaxDrawdown"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="—"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </LinearLayout>
+            <!-- שורת סה"כ הושקע -->
 
-        <!-- שורת סה"כ הושקע -->
-
-        <!-- AI Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAnalyzeTrades"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="14dp"
-            android:text="✨  AI Trade Analysis"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:letterSpacing="0.05"
-            app:backgroundTint="#20C8DD"
-            app:cornerRadius="18dp"
-            app:elevation="0dp"/>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
-
+            <!-- AI Button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnExportTrades"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="Export"
-                android:textSize="12sp"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                app:strokeColor="?attr/colorPrimary" />
+                android:id="@+id/btnAnalyzeTrades"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="14dp"
+                android:text="✨  AI Trade Analysis"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:letterSpacing="0.05"
+                app:backgroundTint="#20C8DD"
+                app:cornerRadius="18dp"
+                app:elevation="0dp"/>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnImportTrades"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="Import CSV / Excel"
-                android:textSize="12sp"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                app:strokeColor="@color/colorBorder" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnExportTrades"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="Export"
+                    android:textSize="12sp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    app:strokeColor="?attr/colorPrimary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnImportTrades"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="Import CSV / Excel"
+                    android:textSize="12sp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    app:strokeColor="@color/colorBorder" />
+            </LinearLayout>
+
         </LinearLayout>
+
+        <!-- RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/closedTradesRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:paddingTop="4dp"
+            android:paddingBottom="16dp"
+            android:clipToPadding="false"
+            android:scrollbars="none" />
 
     </LinearLayout>
-
-    <!-- RecyclerView -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/closedTradesRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingTop="4dp"
-        android:paddingBottom="16dp"
-        android:clipToPadding="false"
-        android:scrollbars="none" />
-
-</LinearLayout>
+</com.mogomarket.app.PullRefreshLayout>

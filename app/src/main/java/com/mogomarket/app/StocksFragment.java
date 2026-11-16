@@ -59,7 +59,7 @@ public class StocksFragment extends Fragment implements StocksAdapter.OnStockCli
         stocksRecyclerView = view.findViewById(R.id.watchlistRecyclerView);
         stockInput         = view.findViewById(R.id.stockAutoInput);  // ID חדש
         addStockBtn        = view.findViewById(R.id.addStockBtn);
-        btnRefreshAll      = view.findViewById(R.id.btnRefreshWatchlist);
+        btnRefreshAll      = null; // refresh is now pull-down; the button no longer exists
 
         adapter = new StocksAdapter(stocksList, this);
         stocksRecyclerView.setAdapter(adapter);

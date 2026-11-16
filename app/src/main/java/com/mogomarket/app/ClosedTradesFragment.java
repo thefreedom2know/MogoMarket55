@@ -157,6 +157,12 @@ public class ClosedTradesFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
 
+        PullRefreshLayout pullRefresh = v.findViewById(R.id.pullRefresh);
+        if (pullRefresh != null) {
+            pullRefresh.setScrollTarget(recyclerView);
+            pullRefresh.setRefreshAction(() -> adapter.notifyDataSetChanged());
+        }
+
         if (closedTradesRef != null) {
             closedTradesListener = new ValueEventListener() {
                 @Override

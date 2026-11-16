@@ -189,7 +189,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
 
     private com.google.android.material.button.MaterialButton btnTickerSelect;
     private com.google.android.material.button.MaterialButton btnTimeframePicker;
-    private com.google.android.material.button.MaterialButton btnChartRefresh;
+    private PullRefreshLayout pullRefreshLayout;
     private com.google.android.material.button.MaterialButton btnChartMenu;
     private com.google.android.material.button.MaterialButton btnMagnetMode;
     private Button btnLoad, btnTimeFrame;
@@ -368,7 +368,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         btnChartThemeToggle= v.findViewById(R.id.btnChartThemeToggle);
         btnTickerSelect    = v.findViewById(R.id.btnTickerSelect);
         btnTimeframePicker = v.findViewById(R.id.btnTimeframePicker);
-        btnChartRefresh   = v.findViewById(R.id.btnChartRefresh);
+        pullRefreshLayout = v.findViewById(R.id.pullRefresh);
         btnChartMenu       = v.findViewById(R.id.btnChartMenu);
         tickerLabelTop     = v.findViewById(R.id.tickerLabelTop);
         chartTickerTitle   = v.findViewById(R.id.chartTickerTitle);
@@ -1029,11 +1029,13 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             btnTimeframePicker.setOnClickListener(v -> showTimeframeDialog());
         }
 
-        if (btnChartRefresh != null) {
-            btnChartRefresh.setOnClickListener(v -> {
-                btnChartRefresh.animate().rotationBy(360f).setDuration(450L).start();
-                fetchStockData(symbol, interval);
-            });
+        PullRefreshLayout pullRefresh = pullRefreshLayout;
+        if (pullRefresh != null) {
+            // The charts handle their own drags (crosshair, pan), so a gesture that starts on a
+            // chart never refreshes the page.
+            pullRefresh.addBlockedView(candleStickChart);
+            pullRefresh.addBlockedView(lineChart);
+            pullRefresh.setRefreshAction(() -> fetchStockData(symbol, interval));
         }
 
         if (btnChartMenu != null) {

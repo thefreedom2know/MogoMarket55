@@ -103,8 +103,9 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
 
         view.findViewById(R.id.btnAddStockToPortfolio).setOnClickListener(
                 v -> Navigation.findNavController(v).navigate(R.id.portfolioAddStockFragment));
-        view.findViewById(R.id.btnRefreshPortfolio).setOnClickListener(v -> {
-            v.animate().rotationBy(360f).setDuration(450L).start();
+        PullRefreshLayout pullRefresh = view.findViewById(R.id.pullRefresh);
+        pullRefresh.setScrollTarget(recyclerView);
+        pullRefresh.setRefreshAction(() -> {
             betaRequestKey = null;
             requestPortfolioBeta(cashBalance);
             adapter.refreshPrices();

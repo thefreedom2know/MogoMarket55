@@ -207,7 +207,6 @@ public class WatchlistFragment extends Fragment {
         addStockBtn = v.findViewById(R.id.addStockBtn);
         btnToggleAddStock = v.findViewById(R.id.btnToggleAddStock);
         addStockSection = v.findViewById(R.id.addStockSection);
-        btnRefreshWatchlist = v.findViewById(R.id.btnRefreshWatchlist);
 
         if (btnToggleAddStock != null && addStockSection != null) {
             btnToggleAddStock.setOnClickListener(view -> {
@@ -268,11 +267,10 @@ public class WatchlistFragment extends Fragment {
             });
         }
 
-        if (btnRefreshWatchlist != null) {
-            btnRefreshWatchlist.setOnClickListener(view -> {
-                view.animate().rotationBy(360f).setDuration(450L).start();
-                adapter.refresh();
-            });
+        PullRefreshLayout pullRefresh = v.findViewById(R.id.pullRefresh);
+        if (pullRefresh != null) {
+            pullRefresh.setScrollTarget(watchlistRecyclerView);
+            pullRefresh.setRefreshAction(() -> adapter.refresh());
         }
 
         ChipGroup sortChipGroup = v.findViewById(R.id.sortChipGroup);
