@@ -159,20 +159,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private static final String[][] GUIDE_STEPS = {
-            {"Chart", "View live prices as candles or a line, pick a timeframe, add volume or the 150-day average, and long-press the chart for a crosshair. Pull down to refresh."},
-            {"Portfolio", "Your open positions with profit/loss in % and $, today's change and each position's share of the portfolio. Tap the yellow + to add a trade (or import it from a screenshot) and the calculator to size a position."},
-            {"Watchlist", "Follow the stocks you care about with a mini chart (green = up today, red = down), pre/post-market prices and price alerts."},
-            {"Trades", "Closed trades with results, analytics and history, so you can learn from past decisions."},
-            {"Simulator", "Practice trading with simulated positions - no real money involved."},
-            {"Settings", "Customize the theme, chart defaults, notifications and the daily summary email."}
+            {"Chart", "Live prices as candles or a line, with volume and timeframes."},
+            {"Portfolio", "Your open positions with profit/loss. Tap + to add a trade."},
+            {"Watchlist", "Follow stocks with a mini chart and price alerts."},
+            {"Trades", "Your closed trades and their results."},
+            {"Simulator", "Practice trading with no real money."},
+            {"Settings", "Theme, chart defaults and notifications. Long-press a bottom icon to move it."}
     };
     private static final String[][] GUIDE_STEPS_HE = {
-            {"גרף", "צפה במחירים חיים בנרות או בקו, בחר טווח זמן, הוסף ווליום או ממוצע נע ל-150 יום, ולחיצה ארוכה על הגרף פותחת קו הצלבה. משוך למטה כדי לרענן."},
-            {"פורטפוליו", "הפוזיציות הפתוחות שלך עם רווח/הפסד באחוזים ובדולרים, השינוי של היום ומשקל כל פוזיציה בתיק. הפלוס הצהוב מוסיף עסקה (או מייבא אותה מצילום מסך), והמחשבון עוזר לקבוע גודל פוזיציה."},
-            {"רשימת מעקב", "עקוב אחרי המניות שחשובות לך עם גרף קטן (ירוק = עלייה היום, אדום = ירידה), מחירי טרום ואחרי מסחר והתראות מחיר."},
-            {"עסקאות", "עסקאות סגורות עם התוצאות, ניתוחים והיסטוריה, כדי ללמוד מהחלטות קודמות."},
-            {"סימולטור", "תרגל מסחר עם פוזיציות מדומות, בלי כסף אמיתי."},
-            {"הגדרות", "התאמת ערכת הנושא, ברירות מחדל של הגרף, התראות ומייל סיכום יומי."}
+            {"גרף", "מחירים חיים בנרות או בקו, עם ווליום וטווחי זמן."},
+            {"פורטפוליו", "הפוזיציות הפתוחות שלך עם רווח/הפסד. לחץ על + כדי להוסיף עסקה."},
+            {"רשימת מעקב", "עקוב אחרי מניות עם גרף קטן והתראות מחיר."},
+            {"עסקאות", "העסקאות הסגורות שלך והתוצאות שלהן."},
+            {"סימולטור", "תרגל מסחר בלי כסף אמיתי."},
+            {"הגדרות", "ערכת נושא, ברירות מחדל לגרף והתראות. לחיצה ארוכה על אייקון בסרגל התחתון מזיזה אותו."}
     };
     private static final int[] GUIDE_BUTTON_IDS = {
             R.id.nav_chart_button, R.id.nav_portfolio_button, R.id.nav_watchlist_button,
