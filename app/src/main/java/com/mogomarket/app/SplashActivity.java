@@ -81,7 +81,7 @@ public class SplashActivity extends AppCompatActivity {
         // The chart line draws across the bottom while the text appears.
         ValueAnimator graphBuild = ValueAnimator.ofFloat(0f, 1f);
         graphBuild.setStartDelay(120L);
-        graphBuild.setDuration(720L);
+        graphBuild.setDuration(470L);
         graphBuild.setInterpolator(smooth);
         graphBuild.addUpdateListener(value ->
                 graph.setProgress((float) value.getAnimatedValue()));
@@ -95,7 +95,7 @@ public class SplashActivity extends AppCompatActivity {
         titleRise.setInterpolator(smooth);
 
         ObjectAnimator taglineFade = ObjectAnimator.ofFloat(tagline, View.ALPHA, 0f, 1f);
-        taglineFade.setStartDelay(320L);
+        taglineFade.setStartDelay(250L);
         taglineFade.setDuration(300L);
 
         android.animation.AnimatorSet sequence = new android.animation.AnimatorSet();
