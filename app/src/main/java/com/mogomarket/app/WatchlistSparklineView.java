@@ -34,6 +34,12 @@ public class WatchlistSparklineView extends View {
         linePaint.setColor(0xFF087E8B);
     }
 
+    /** Recolors the line (green = up today, red = down today) without changing the data. */
+    public void setColor(int color) {
+        linePaint.setColor(color);
+        invalidate();
+    }
+
     public void setData(@Nullable List<? extends Number> data, int color) {
         linePaint.setColor(color);
         if (data == null) {

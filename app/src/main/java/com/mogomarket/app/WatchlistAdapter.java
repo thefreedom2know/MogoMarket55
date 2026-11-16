@@ -401,14 +401,16 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                 && !s.endsWith("=X");
     }
 
-    private void showSparkline(ViewHolder holder, ExtendedQuote q, int colorGain, int colorLoss) {
+    private void showSparkline(ViewHolder holder, StockWatchData stock, ExtendedQuote q,
+                               int colorGain, int colorLoss) {
         if (holder.sparkline == null || q == null || q.spark.size() < 2) return;
-        boolean up = q.spark.get(q.spark.size() - 1) >= q.spark.get(0);
-        holder.sparkline.setData(q.spark, up ? colorGain : colorLoss);
+        // Green when the stock is up today, red when it is down today.
+        holder.sparkline.setData(q.spark, stock.dayChange >= 0f ? colorGain : colorLoss);
     }
 
-    private void showExtended(ViewHolder holder, ExtendedQuote q, int colorGain, int colorLoss) {
-        showSparkline(holder, q, colorGain, colorLoss);
+    private void showExtended(ViewHolder holder, StockWatchData stock, ExtendedQuote q,
+                              int colorGain, int colorLoss) {
+        showSparkline(holder, stock, q, colorGain, colorLoss);
         if (q == null) {
             holder.extendedText.setVisibility(View.GONE);
             return;
@@ -423,18 +425,28 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
     private void bindExtendedHours(StockWatchData stock, ViewHolder holder,
                                    int colorGain, int colorLoss) {
         holder.extendedText.setVisibility(View.GONE);
-        if (!supportsExtendedHours(stock.symbol)) return;
+        if (holder.sparkline != null) holder.sparkline.setData(null, colorGain); // clear recycled row
+        if (stock.symbol == null || stock.symbol.trim().isEmpty()) return;
+        final boolean extendedSupported = supportsExtendedHours(stock.symbol);
         ExtendedQuote cached = extendedCache.get(stock.symbol);
         if (cached != null && System.currentTimeMillis() - cached.fetchedAt < EXTENDED_CACHE_TTL_MS) {
-            showExtended(holder, cached.label == null ? null : cached, colorGain, colorLoss);
+            showExtended(holder, stock, cached.label == null ? null : cached, colorGain, colorLoss);
+            if (cached.label == null) showSparkline(holder, stock, cached, colorGain, colorLoss);
             return;
         }
         if (extendedLoading.contains(stock.symbol)) return;
         extendedLoading.add(stock.symbol);
         final String symbol = stock.symbol;
-        String encoded = URLEncoder.encode(symbol.trim(), StandardCharsets.UTF_8).replace("+", "%20");
-        String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encoded
-                + "?interval=1m&range=1d&includePrePost=true";
+        String encoded = URLEncoder.encode(mapSymbolForQuote(symbol).trim(), StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        final boolean crypto = isCrypto(symbol);
+        String url = crypto
+                ? "https://api.binance.com/api/v3/klines?symbol="
+                        + mapSymbolForQuote(symbol).substring(mapSymbolForQuote(symbol).indexOf(':') + 1)
+                        + "&interval=15m&limit=96"
+                : "https://query1.finance.yahoo.com/v8/finance/chart/" + encoded
+                        + "?interval=" + (extendedSupported ? "1m" : "5m")
+                        + "&range=1d&includePrePost=" + extendedSupported;
         Request request = new Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build();
         client.newCall(request).enqueue(new Callback() {
             @Override
@@ -451,6 +463,12 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                 ExtendedQuote quote = new ExtendedQuote();
                 quote.fetchedAt = System.currentTimeMillis();
                 try {
+                  if (crypto) {
+                    JSONArray klines = new JSONArray(body);
+                    for (int i = 0; i < klines.length(); i++) {
+                        quote.spark.add((float) Double.parseDouble(klines.getJSONArray(i).getString(4)));
+                    }
+                  } else {
                     JSONArray result = new JSONObject(body).getJSONObject("chart").optJSONArray("result");
                     if (result != null && result.length() > 0) {
                         JSONObject item = result.getJSONObject(0);
@@ -469,7 +487,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                         int step = Math.max(1, all.size() / 40);
                         for (int i = 0; i < all.size(); i += step) quote.spark.add(all.get(i));
                         if (!all.isEmpty() && (all.size() - 1) % step != 0) quote.spark.add(all.get(all.size() - 1));
-                        if (stamps != null && regularPrice > 0) {
+                        if (extendedSupported && stamps != null && regularPrice > 0) {
                             for (int i = Math.min(stamps.length(), closes.length()) - 1; i >= 0; i--) {
                                 if (closes.isNull(i)) continue;
                                 long ts = stamps.getLong(i);
@@ -486,13 +504,15 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                             }
                         }
                     }
+                  }
                 } catch (Exception ignored) {
                     // No extended-hours data: the row simply shows nothing extra.
                 }
                 extendedCache.put(symbol, quote);
                 holder.extendedText.post(() -> {
                     if (!symbol.equals(holder.itemView.getTag())) return;
-                    showExtended(holder, quote.label == null ? null : quote, colorGain, colorLoss);
+                    showExtended(holder, stock, quote.label == null ? null : quote, colorGain, colorLoss);
+                    if (quote.label == null) showSparkline(holder, stock, quote, colorGain, colorLoss);
                 });
             }
         });
@@ -820,6 +840,11 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
     }
 
     private void bindChange(TextView tv, float change, int colorGain, int colorLoss) {
+        if (tv.getParent() instanceof View) {
+            WatchlistSparklineView spark =
+                    ((View) tv.getParent()).findViewById(R.id.watchlistSparkline);
+            if (spark != null) spark.setColor(change >= 0 ? colorGain : colorLoss);
+        }
         if (change >= 0) {
             tv.setText(String.format(Locale.US, "▲ +%.2f%%", change));
             tv.setTextColor(colorGain);
