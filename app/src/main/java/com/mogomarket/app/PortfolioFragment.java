@@ -502,26 +502,66 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
             return;
         }
 
+        FirebaseUser sender = FirebaseAuth.getInstance().getCurrentUser();
+        if (sender == null) {
+            if (afterSend != null) afterSend.run();
+            return;
+        }
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("recipientEmail", recipientEmail);
+        payload.put("senderUid", sender.getUid());
+        payload.put("senderEmail", sender.getEmail() == null ? "" : sender.getEmail());
         payload.put("title", title);
         payload.put("trades", sharedTrades);
+        payload.put("createdAt", System.currentTimeMillis());
         Toast.makeText(getContext(), "Sending trade...", Toast.LENGTH_SHORT).show();
-        FirebaseFunctions.getInstance().getHttpsCallable("sendTradeShare")
-                .call(payload)
-                .addOnSuccessListener(result -> {
-                    if (!isAdded() || getContext() == null) return;
-                    Toast.makeText(getContext(), "Trade shared inside Mogo Market",
-                            Toast.LENGTH_LONG).show();
+
+        // 1. Find the recipient's uid through the email index (written by each user on login).
+        FirebaseDatabase.getInstance().getReference("user-emails")
+                .child(emailKey(recipientEmail)).get()
+                .addOnSuccessListener(snapshot -> {
+                    String recipientUid = snapshot.getValue(String.class);
+                    if (recipientUid == null || recipientUid.isEmpty()) {
+                        if (isAdded() && getContext() != null) {
+                            Toast.makeText(getContext(), "No Mogo Market user found with "
+                                    + "that email (they must open the updated app once)",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                        return;
+                    }
+                    // 2. Drop the share into the recipient's inbox.
+                    DatabaseReference inbox = FirebaseDatabase.getInstance()
+                            .getReference("trade-shares").child(recipientUid).push();
+                    inbox.setValue(payload)
+                            .addOnSuccessListener(unused -> {
+                                if (!isAdded() || getContext() == null) return;
+                                Toast.makeText(getContext(), "Trade shared inside Mogo Market",
+                                        Toast.LENGTH_LONG).show();
+                            })
+                            .addOnFailureListener(error -> showShareError(error));
                 })
-                .addOnFailureListener(error -> {
-                    if (!isAdded() || getContext() == null) return;
-                    String message = error.getLocalizedMessage();
-                    Toast.makeText(getContext(), "Couldn't share trade: "
-                                    + (message == null ? "unknown error" : message),
-                            Toast.LENGTH_LONG).show();
-                });
+                .addOnFailureListener(error -> showShareError(error));
         if (afterSend != null) afterSend.run();
+    }
+
+    private void showShareError(Exception error) {
+        if (!isAdded() || getContext() == null) return;
+        String message = error.getLocalizedMessage();
+        Toast.makeText(getContext(), "Couldn't share trade: "
+                        + (message == null ? "unknown error" : message),
+                Toast.LENGTH_LONG).show();
+    }
+
+    /** Realtime Database keys can't contain '.', so emails are stored with ',' instead. */
+    static String emailKey(String email) {
+        return email.trim().toLowerCase(Locale.US).replace('.', ',');
+    }
+
+    /** Publishes email -> uid so other users can address a share to this account. */
+    static void registerEmailIndex() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null || user.isAnonymous() || user.getEmail() == null) return;
+        FirebaseDatabase.getInstance().getReference("user-emails")
+                .child(emailKey(user.getEmail())).setValue(user.getUid());
     }
 
     private void showIncomingTradeShares() {
@@ -530,23 +570,18 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
             Toast.makeText(getContext(), "Sign in to view shared trades", Toast.LENGTH_SHORT).show();
             return;
         }
-        FirebaseFunctions.getInstance().getHttpsCallable("getIncomingTradeShares")
-                .call()
-                .addOnSuccessListener(result -> {
+        FirebaseDatabase.getInstance().getReference("trade-shares")
+                .child(currentUser.getUid()).get()
+                .addOnSuccessListener(snapshot -> {
                     if (!isAdded() || getContext() == null) return;
-                    Object rawData = result.getData();
-                    if (!(rawData instanceof Map)) {
-                        Toast.makeText(getContext(), "Couldn't read shared trades",
-                                Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    Object rawShares = ((Map<?, ?>) rawData).get("shares");
                     List<Map<?, ?>> shares = new ArrayList<>();
-                    if (rawShares instanceof List) {
-                        for (Object item : (List<?>) rawShares) {
-                            if (item instanceof Map) shares.add((Map<?, ?>) item);
-                        }
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        Object value = child.getValue();
+                        if (value instanceof Map) shares.add((Map<?, ?>) value);
                     }
+                    // Newest first.
+                    shares.sort((a, b) -> Double.compare(valueAsDouble(b.get("createdAt")),
+                            valueAsDouble(a.get("createdAt"))));
                     if (shares.isEmpty()) {
                         new AlertDialog.Builder(requireContext())
                                 .setTitle("Shared with me")

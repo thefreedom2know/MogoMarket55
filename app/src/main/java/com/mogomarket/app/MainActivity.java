@@ -65,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         requestNotificationPermission();
+        PortfolioFragment.registerEmailIndex();
 
         // NavHost + NavController
         NavHostFragment navHostFragment =
