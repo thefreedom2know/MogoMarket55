@@ -52,6 +52,15 @@ public class SplashActivity extends AppCompatActivity {
         });
 
         View logo = findViewById(R.id.splashLogo);
+        // The bull image is a square photo: clip it to rounded corners so it sits cleanly on the splash.
+        final float logoRadius = 24f * getResources().getDisplayMetrics().density;
+        logo.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, android.graphics.Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), logoRadius);
+            }
+        });
+        logo.setClipToOutline(true);
         View glow = findViewById(R.id.splashGlow);
         View title = findViewById(R.id.splashTitle);
         View tagline = findViewById(R.id.splashTagline);
