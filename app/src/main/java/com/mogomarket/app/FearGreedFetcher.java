@@ -26,7 +26,10 @@ public class FearGreedFetcher {
 
     public static void fetch(Listener listener) {
         Request request = new Request.Builder().url(URL)
-                .header("User-Agent", "Mozilla/5.0")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+                .header("Origin", "https://edition.cnn.com")
+                .header("Referer", "https://edition.cnn.com/")
                 .header("Accept", "application/json")
                 .build();
         CLIENT.newCall(request).enqueue(new Callback() {
