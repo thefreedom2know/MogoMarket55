@@ -43,3 +43,13 @@
 -keep,allowoptimization class androidx.navigation.fragment.NavHostFragment {
     public <init>();
 }
+
+# Simulator (paper trading) Firebase models - read/written via getValue/setValue reflection
+-keepclassmembers class com.mogomarket.app.PaperPosition {
+    public <init>();
+    public <fields>;
+}
+-keepclassmembers class com.mogomarket.app.PaperTradeRecord {
+    public <init>();
+    public <fields>;
+}

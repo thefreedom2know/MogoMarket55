@@ -273,6 +273,9 @@ public class WatchlistFragment extends Fragment {
             pullRefresh.setRefreshAction(() -> adapter.refresh());
         }
 
+        MaterialButton btnSectors = v.findViewById(R.id.btnSectors);
+        if (btnSectors != null) btnSectors.setOnClickListener(x -> showSectorsDialog());
+
         ChipGroup sortChipGroup = v.findViewById(R.id.sortChipGroup);
         Chip chipSortOrder = v.findViewById(R.id.chipSortOrder);
 
@@ -327,6 +330,99 @@ public class WatchlistFragment extends Fragment {
         loadWatchlist();
 
         return v;
+    }
+
+    private static final String[][] SECTOR_ETFS = {
+            {"XLK", "Technology"}, {"XLF", "Financials"}, {"XLV", "Health Care"},
+            {"XLY", "Consumer Discretionary"}, {"XLP", "Consumer Staples"},
+            {"XLE", "Energy"}, {"XLI", "Industrials"}, {"XLB", "Materials"},
+            {"XLU", "Utilities"}, {"XLRE", "Real Estate"}, {"XLC", "Communication Services"}
+    };
+
+    /** Shows today's % change for each S&P 500 sector (via the SPDR sector ETFs). */
+    private void showSectorsDialog() {
+        if (!isAdded()) return;
+        final int n = SECTOR_ETFS.length;
+        final double[] changes = new double[n];
+        java.util.Arrays.fill(changes, Double.NaN);
+        final AtomicInteger pending = new AtomicInteger(n);
+
+        android.widget.TextView body = new android.widget.TextView(requireContext());
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        body.setPadding(pad, pad / 2, pad, 0);
+        body.setTextSize(16f);
+        body.setText("Loading...");
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle("S&P 500 sectors - today")
+                .setView(body)
+                .setPositiveButton("Close", null)
+                .show();
+
+        final Runnable render = () -> {
+            if (!isAdded() || !dialog.isShowing()) return;
+            Integer[] order = new Integer[n];
+            for (int i = 0; i < n; i++) order[i] = i;
+            java.util.Arrays.sort(order, (a, b) -> {
+                double x = Double.isNaN(changes[a]) ? -1e9 : changes[a];
+                double y = Double.isNaN(changes[b]) ? -1e9 : changes[b];
+                return Double.compare(y, x);
+            });
+            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+            for (int idx : order) {
+                String name = SECTOR_ETFS[idx][1];
+                double c = changes[idx];
+                String pct = Double.isNaN(c) ? "--" : String.format(Locale.US, "%+.2f%%", c);
+                int color = Double.isNaN(c) ? 0xFF8D9AAE : (c >= 0 ? 0xFF34D399 : 0xFFEF4444);
+                sb.append(name).append("   ");
+                int start = sb.length();
+                sb.append(pct);
+                sb.setSpan(new android.text.style.ForegroundColorSpan(color), start, sb.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), start,
+                        sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                sb.append("
+");
+            }
+            body.setText(sb);
+        };
+
+        for (int i = 0; i < n; i++) {
+            final int index = i;
+            Request req = new Request.Builder()
+                    .url(ApiConfig.YAHOO_CHART + SECTOR_ETFS[i][0] + "?range=5d&interval=1d")
+                    .header("User-Agent", "Mozilla/5.0")
+                    .build();
+            httpClient.newCall(req).enqueue(new Callback() {
+                private void done() {
+                    if (pending.decrementAndGet() == 0 && isAdded()) {
+                        requireActivity().runOnUiThread(render);
+                    }
+                }
+
+                @Override
+                public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                    done();
+                }
+
+                @Override
+                public void onResponse(@NonNull Call call, @NonNull Response response) {
+                    try {
+                        if (response.isSuccessful() && response.body() != null) {
+                            JSONArray result = new JSONObject(response.body().string())
+                                    .getJSONObject("chart").optJSONArray("result");
+                            if (result != null && result.length() > 0) {
+                                changes[index] = YahooQuoteMath.fromChartItem(
+                                        result.get(0)).changePercent;
+                            }
+                        }
+                    } catch (Exception ignored) {
+                    } finally {
+                        response.close();
+                        done();
+                    }
+                }
+            });
+        }
     }
 
     private void updateOrderChipText(@Nullable Chip chipSortOrder) {
