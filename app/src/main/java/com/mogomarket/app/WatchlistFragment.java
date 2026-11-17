@@ -347,14 +347,19 @@ public class WatchlistFragment extends Fragment {
         java.util.Arrays.fill(changes, Double.NaN);
         final AtomicInteger pending = new AtomicInteger(n);
 
-        android.widget.TextView body = new android.widget.TextView(requireContext());
-        int pad = (int) (20 * getResources().getDisplayMetrics().density);
-        body.setPadding(pad, pad / 2, pad, 0);
-        body.setTextSize(16f);
-        body.setText("Loading...");
+        final float dp = getResources().getDisplayMetrics().density;
+        final android.widget.ScrollView scroll = new android.widget.ScrollView(requireContext());
+        final android.widget.LinearLayout list = new android.widget.LinearLayout(requireContext());
+        list.setOrientation(android.widget.LinearLayout.VERTICAL);
+        list.setPadding((int) (20 * dp), (int) (8 * dp), (int) (20 * dp), (int) (8 * dp));
+        scroll.addView(list);
+        android.widget.TextView loading = new android.widget.TextView(requireContext());
+        loading.setText("Loading...");
+        loading.setTextSize(16f);
+        list.addView(loading);
         AlertDialog dialog = new AlertDialog.Builder(requireContext())
                 .setTitle("S&P 500 sectors - today")
-                .setView(body)
+                .setView(scroll)
                 .setPositiveButton("Close", null)
                 .show();
 
@@ -367,22 +372,45 @@ public class WatchlistFragment extends Fragment {
                 double y = Double.isNaN(changes[b]) ? -1e9 : changes[b];
                 return Double.compare(y, x);
             });
-            android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+            list.removeAllViews();
             for (int idx : order) {
-                String name = SECTOR_ETFS[idx][1];
                 double c = changes[idx];
                 String pct = Double.isNaN(c) ? "--" : String.format(Locale.US, "%+.2f%%", c);
                 int color = Double.isNaN(c) ? 0xFF8D9AAE : (c >= 0 ? 0xFF34D399 : 0xFFEF4444);
-                sb.append(name).append("   ");
-                int start = sb.length();
-                sb.append(pct);
-                sb.setSpan(new android.text.style.ForegroundColorSpan(color), start, sb.length(),
-                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), start,
-                        sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                sb.append("\n");
+
+                android.widget.LinearLayout row = new android.widget.LinearLayout(requireContext());
+                row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                row.setPadding(0, (int) (12 * dp), 0, (int) (12 * dp));
+
+                android.widget.LinearLayout names = new android.widget.LinearLayout(requireContext());
+                names.setOrientation(android.widget.LinearLayout.VERTICAL);
+                android.widget.TextView tvTicker = new android.widget.TextView(requireContext());
+                tvTicker.setText(SECTOR_ETFS[idx][0]);
+                tvTicker.setTextSize(17f);
+                tvTicker.setTypeface(null, android.graphics.Typeface.BOLD);
+                android.widget.TextView tvName = new android.widget.TextView(requireContext());
+                tvName.setText(SECTOR_ETFS[idx][1]);
+                tvName.setTextSize(13f);
+                tvName.setAlpha(0.7f);
+                names.addView(tvTicker);
+                names.addView(tvName);
+                row.addView(names, new android.widget.LinearLayout.LayoutParams(
+                        0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+                android.widget.TextView tvPct = new android.widget.TextView(requireContext());
+                tvPct.setText(pct);
+                tvPct.setTextSize(18f);
+                tvPct.setTypeface(null, android.graphics.Typeface.BOLD);
+                tvPct.setTextColor(color);
+                row.addView(tvPct);
+                list.addView(row);
+
+                View divider = new View(requireContext());
+                divider.setBackgroundColor(0x22808080);
+                list.addView(divider, new android.widget.LinearLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT, 1));
             }
-            body.setText(sb);
         };
 
         for (int i = 0; i < n; i++) {
