@@ -380,8 +380,7 @@ public class WatchlistFragment extends Fragment {
                         android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), start,
                         sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                sb.append("
-");
+                sb.append("\n");
             }
             body.setText(sb);
         };
