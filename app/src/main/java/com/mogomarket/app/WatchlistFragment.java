@@ -351,7 +351,7 @@ public class WatchlistFragment extends Fragment {
         final android.widget.ScrollView scroll = new android.widget.ScrollView(requireContext());
         final android.widget.LinearLayout list = new android.widget.LinearLayout(requireContext());
         list.setOrientation(android.widget.LinearLayout.VERTICAL);
-        list.setPadding((int) (20 * dp), (int) (8 * dp), (int) (20 * dp), (int) (8 * dp));
+        list.setPadding((int) (20 * dp), (int) (2 * dp), (int) (20 * dp), (int) (2 * dp));
         scroll.addView(list);
         android.widget.TextView loading = new android.widget.TextView(requireContext());
         loading.setText("Loading...");
@@ -381,17 +381,21 @@ public class WatchlistFragment extends Fragment {
                 android.widget.LinearLayout row = new android.widget.LinearLayout(requireContext());
                 row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
                 row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-                row.setPadding(0, (int) (12 * dp), 0, (int) (12 * dp));
+                row.setPadding(0, (int) (7 * dp), 0, (int) (7 * dp));
 
                 android.widget.LinearLayout names = new android.widget.LinearLayout(requireContext());
-                names.setOrientation(android.widget.LinearLayout.VERTICAL);
+                names.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+                names.setGravity(android.view.Gravity.CENTER_VERTICAL);
                 android.widget.TextView tvTicker = new android.widget.TextView(requireContext());
                 tvTicker.setText(SECTOR_ETFS[idx][0]);
-                tvTicker.setTextSize(17f);
+                tvTicker.setTextSize(15f);
+                tvTicker.setMinWidth((int) (52 * dp));
                 tvTicker.setTypeface(null, android.graphics.Typeface.BOLD);
                 android.widget.TextView tvName = new android.widget.TextView(requireContext());
                 tvName.setText(SECTOR_ETFS[idx][1]);
-                tvName.setTextSize(13f);
+                tvName.setTextSize(12f);
+                tvName.setSingleLine(true);
+                tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
                 tvName.setAlpha(0.7f);
                 names.addView(tvTicker);
                 names.addView(tvName);
@@ -400,7 +404,7 @@ public class WatchlistFragment extends Fragment {
 
                 android.widget.TextView tvPct = new android.widget.TextView(requireContext());
                 tvPct.setText(pct);
-                tvPct.setTextSize(18f);
+                tvPct.setTextSize(15f);
                 tvPct.setTypeface(null, android.graphics.Typeface.BOLD);
                 tvPct.setTextColor(color);
                 row.addView(tvPct);
