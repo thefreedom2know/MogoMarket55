@@ -15,7 +15,8 @@
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="215dp"
+            android:layout_height="wrap_content"
+            android:minHeight="215dp"
             android:layout_marginBottom="12dp"
             app:cardBackgroundColor="@color/pf_0c1018"
             app:cardCornerRadius="22dp"
@@ -110,6 +111,7 @@
                         android:text="Today: $0.00 (0.00%)"
                         android:textColor="@color/pf_ffffff"
                         android:textSize="15sp"
+                        android:ellipsize="none"
                         android:textStyle="bold" />
 
                     <TextView
@@ -203,7 +205,7 @@
                     android:layout_marginEnd="4dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_stat_today"
-                    android:gravity="center"
+                    android:gravity="center_horizontal"
                     android:orientation="vertical"
                     android:padding="5dp">
 
@@ -215,14 +217,25 @@
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
                     <TextView
                         android:id="@+id/tvDailyPnl"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
+                        android:gravity="center"
                         android:layout_height="wrap_content"
                         android:maxLines="1"
                         android:text="$0.00"
                         android:textColor="@color/pf_ff7279"
                         android:textSize="12sp"
+                        android:autoSizeTextType="uniform"
+                        android:autoSizeMinTextSize="7sp"
+                        android:autoSizeMaxTextSize="12sp"
+                        android:ellipsize="none"
+                        android:layout_marginHorizontal="2dp"
                         android:textStyle="bold" />
 
                     <TextView
