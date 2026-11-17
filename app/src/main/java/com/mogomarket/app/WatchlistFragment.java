@@ -383,31 +383,29 @@ public class WatchlistFragment extends Fragment {
                 row.setGravity(android.view.Gravity.CENTER_VERTICAL);
                 row.setPadding(0, (int) (7 * dp), 0, (int) (7 * dp));
 
-                android.widget.LinearLayout names = new android.widget.LinearLayout(requireContext());
-                names.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-                names.setGravity(android.view.Gravity.CENTER_VERTICAL);
                 android.widget.TextView tvTicker = new android.widget.TextView(requireContext());
                 tvTicker.setText(SECTOR_ETFS[idx][0]);
                 tvTicker.setTextSize(15f);
-                tvTicker.setMinWidth((int) (52 * dp));
                 tvTicker.setTypeface(null, android.graphics.Typeface.BOLD);
-                android.widget.TextView tvName = new android.widget.TextView(requireContext());
-                tvName.setText(SECTOR_ETFS[idx][1]);
-                tvName.setTextSize(12f);
-                tvName.setSingleLine(true);
-                tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                tvName.setAlpha(0.7f);
-                names.addView(tvTicker);
-                names.addView(tvName);
-                row.addView(names, new android.widget.LinearLayout.LayoutParams(
-                        0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                tvTicker.setMinWidth((int) (52 * dp));
+                row.addView(tvTicker);
 
                 android.widget.TextView tvPct = new android.widget.TextView(requireContext());
                 tvPct.setText(pct);
                 tvPct.setTextSize(15f);
                 tvPct.setTypeface(null, android.graphics.Typeface.BOLD);
                 tvPct.setTextColor(color);
+                tvPct.setMinWidth((int) (70 * dp));
                 row.addView(tvPct);
+
+                android.widget.TextView tvName = new android.widget.TextView(requireContext());
+                tvName.setText(SECTOR_ETFS[idx][1]);
+                tvName.setTextSize(12f);
+                tvName.setAlpha(0.7f);
+                tvName.setSingleLine(true);
+                tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                row.addView(tvName, new android.widget.LinearLayout.LayoutParams(
+                        0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 list.addView(row);
 
                 View divider = new View(requireContext());
