@@ -78,24 +78,20 @@ public class MainActivity extends AppCompatActivity {
         navController = navHostFragment.getNavController();
 
         setupNavigationDock();
-        // עמוד התחלתי לפי ההגדרה השמורה
+
+        // The chosen start page becomes the graph's real start destination, so the dock's
+        // popUpTo(startDestination) logic never sends the user back to the wrong screen.
+        int startPageId = prefs.getInt(KEY_START_PAGE, R.id.nav_chart);
+        androidx.navigation.NavGraph graph = navController.getNavInflater()
+                .inflate(R.navigation.nav_graph);
+        if (graph.findNode(startPageId) == null) {
+            prefs.edit().remove(KEY_START_PAGE).apply();
+            startPageId = R.id.nav_chart;
+        }
+        graph.setStartDestination(startPageId);
+        navController.setGraph(graph, null);
+
         if (savedInstanceState == null) {
-            int startPageId = prefs.getInt(KEY_START_PAGE, R.id.nav_chart);
-
-            // וידוא שה-ID הוא destination חוקי ב-NavGraph לפני ניווט
-            boolean isValidDestination = false;
-            try {
-                isValidDestination = (navController.getGraph().findNode(startPageId) != null);
-            } catch (Exception e) {
-                isValidDestination = false;
-            }
-
-            if (isValidDestination && startPageId != R.id.nav_chart) {
-                navController.navigate(startPageId);
-            } else if (!isValidDestination) {
-                // נקה ערך פגום מה-SharedPreferences
-                prefs.edit().remove(KEY_START_PAGE).apply();
-            }
             if (!prefs.getBoolean(KEY_FIRST_RUN_GUIDE_SHOWN, false)) {
                 showFirstRunGuide(prefs);
             }

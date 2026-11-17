@@ -28,6 +28,7 @@
             <intent-filter>
                 <action android:name="com.example.chart.CHECK_PRICE_ALERTS" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 

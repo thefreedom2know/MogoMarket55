@@ -51,7 +51,7 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
     private ValueEventListener stocksListener;
     private ValueEventListener cashListener;
     private TextView tvOpenCount, tvTotalPnl, tvTotalPct, tvDailyPnl, tvDailyPct;
-    private TextView tvTotalInvested, tvCash, tvPortfolioValue;
+    private TextView tvTotalInvested, tvCash, tvPortfolioValue, tvHeroDaily, tvFearGreed;
     private TextView tvConcentrationAlert;
     private View concentrationRiskCard;
     private TextView tvPortfolioBeta;
@@ -80,6 +80,9 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
         tvTotalPct = view.findViewById(R.id.tvTotalPct);
         tvDailyPnl = view.findViewById(R.id.tvDailyPnl);
         tvDailyPct = view.findViewById(R.id.tvDailyPct);
+        tvHeroDaily = view.findViewById(R.id.tvHeroDaily);
+        tvFearGreed = view.findViewById(R.id.tvFearGreed);
+        loadFearGreed();
         tvTotalInvested = view.findViewById(R.id.tvTotalInvested);
         tvCash = view.findViewById(R.id.tvCash);
         tvPortfolioValue = view.findViewById(R.id.tvPortfolioValue);
@@ -186,7 +189,8 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
         if (getActivity() == null || getView() == null) return;
         requestPortfolioBeta(cash);
         double totalPct = invested > 0 ? totalPnl / invested * 100.0 : 0.0;
-        double dailyPct = marketValue > 0 ? dailyPnl / marketValue * 100.0 : 0.0;
+        double previousValue = marketValue - dailyPnl;
+        double dailyPct = previousValue > 0 ? dailyPnl / previousValue * 100.0 : 0.0;
         double portfolioValue = marketValue + cash;
         double largestPositionValue = 0;
         String largestSymbol = "";
@@ -232,6 +236,29 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
             setSignedPercent(tvTotalPct, totalPct);
             setSignedAmount(tvDailyPnl, dailyPnl);
             setSignedPercent(tvDailyPct, dailyPct);
+            if (tvHeroDaily != null) {
+                tvHeroDaily.setText(String.format(Locale.US, "Today: %s$%,.2f (%s%.2f%%)",
+                        dailyPnl >= 0 ? "+" : "-", Math.abs(dailyPnl),
+                        dailyPct >= 0 ? "+" : "-", Math.abs(dailyPct)));
+                tvHeroDaily.setTextColor(getResources().getColor(
+                        dailyPnl >= 0 ? R.color.gain : R.color.loss,
+                        requireContext().getTheme()));
+            }
+        });
+    }
+
+    private void loadFearGreed() {
+        FearGreedFetcher.fetch((score, rating, error) -> {
+            if (!isAdded() || getActivity() == null) return;
+            getActivity().runOnUiThread(() -> {
+                if (tvFearGreed == null) return;
+                if (error != null || score < 0) {
+                    tvFearGreed.setText("Fear & Greed (CNN): unavailable");
+                    return;
+                }
+                String label = rating.isEmpty() ? "" : " – " + rating;
+                tvFearGreed.setText("Fear & Greed (CNN): " + score + label);
+            });
         });
     }
 

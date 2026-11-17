@@ -111,7 +111,9 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
             invested += stock.tradeAmount;
             marketValue += currentValue;
             totalPnl += currentValue - stock.tradeAmount;
-            dailyPnl += currentValue * (stock.dailyProfitLossPercent / 100.0);
+            // Daily change in dollars: value now minus value at the previous close.
+            double dailyFactor = 1.0 + stock.dailyProfitLossPercent / 100.0;
+            dailyPnl += dailyFactor > 0 ? currentValue - currentValue / dailyFactor : 0;
         }
         portfolioSummaryListener.onPortfolioSummaryChanged(
                 invested, marketValue, totalPnl, dailyPnl, cashBalance, stocks.size());

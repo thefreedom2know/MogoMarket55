@@ -16,10 +16,23 @@ public class PriceAlertScheduler {
     public static final String KEY_ENABLED = "price_alerts_enabled";
 
     private static final long INTERVAL_MS = 15 * 60 * 1000L;
-    private static final String ACTION    = "com.example.chart.CHECK_PRICE_ALERTS";
+    static final String ACTION            = "com.example.chart.CHECK_PRICE_ALERTS";
+    private static final String WORK_NAME = "price_alerts_periodic";
     private static final int REQUEST_CODE = 1001;
 
+    /** Keeps the periodic WorkManager backup running (safe to call repeatedly). */
+    private static void ensureBackupWork(Context context) {
+        androidx.work.PeriodicWorkRequest request = new androidx.work.PeriodicWorkRequest.Builder(
+                PriceAlertWorker.class, 15, java.util.concurrent.TimeUnit.MINUTES)
+                .setConstraints(new androidx.work.Constraints.Builder()
+                        .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED).build())
+                .build();
+        androidx.work.WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                WORK_NAME, androidx.work.ExistingPeriodicWorkPolicy.KEEP, request);
+    }
+
     public static void schedule(Context context) {
+        ensureBackupWork(context);
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
 
@@ -36,6 +49,7 @@ public class PriceAlertScheduler {
     }
 
     public static void cancel(Context context) {
+        androidx.work.WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME);
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
         alarmManager.cancel(buildPendingIntent(context));

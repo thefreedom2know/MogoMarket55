@@ -60,6 +60,27 @@
                         android:textSize="36sp"
                         android:textStyle="bold" />
 
+                    <TextView
+                        android:id="@+id/tvHeroDaily"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="1"
+                        android:text="Today: $0.00 (0.00%)"
+                        android:textColor="@color/pf_ffffff"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvFearGreed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:maxLines="1"
+                        android:text="Fear &amp; Greed (CNN): ..."
+                        android:textColor="@color/pf_8fdff0"
+                        android:textSize="13sp" />
+
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
