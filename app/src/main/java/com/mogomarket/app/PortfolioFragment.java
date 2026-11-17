@@ -561,7 +561,11 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null || user.isAnonymous() || user.getEmail() == null) return;
         FirebaseDatabase.getInstance().getReference("user-emails")
-                .child(emailKey(user.getEmail())).setValue(user.getUid());
+                .child(emailKey(user.getEmail())).setValue(user.getUid())
+                .addOnSuccessListener(unused -> android.util.Log.i("TradeShare",
+                        "Email index registered for " + user.getEmail()))
+                .addOnFailureListener(error -> android.util.Log.e("TradeShare",
+                        "Email index registration FAILED", error));
     }
 
     private void showIncomingTradeShares() {
