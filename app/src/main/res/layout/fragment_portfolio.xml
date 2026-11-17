@@ -15,7 +15,7 @@
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="225dp"
+            android:layout_height="190dp"
             android:layout_marginBottom="12dp"
             app:cardBackgroundColor="@color/pf_0c1018"
             app:cardCornerRadius="22dp"
@@ -60,48 +60,6 @@
                         android:textSize="36sp"
                         android:textStyle="bold" />
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="end"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_pill_glow_gold"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="5dp">
-
-                        <TextView
-                            android:id="@+id/tvTotalPnl"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="$0.00"
-                            android:textColor="@color/pf_ffb84d"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvTotalPct"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="+0.00%"
-                            android:textColor="@color/pf_ffd996"
-                            android:textSize="10sp"
-                            android:visibility="gone" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Total Profit"
-                            android:textColor="@color/pf_ffd996"
-                            android:textSize="10sp" />
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-
                     <TextView
                         android:id="@+id/tvHeroDaily"
                         android:layout_width="wrap_content"
@@ -123,6 +81,42 @@
                         android:textColor="@color/pf_8fdff0"
                         android:textSize="13sp" />
 
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="18dp"
+                    android:background="@drawable/bg_pill_glow_gold"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="5dp">
+
+                    <TextView
+                        android:id="@+id/tvTotalPnl"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="$0.00"
+                        android:textColor="@color/pf_ffb84d"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvTotalPct"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+0.00%"
+                        android:textColor="@color/pf_ffd996"
+                        android:textSize="10sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total Profit"
+                        android:textColor="@color/pf_ffd996"
+                        android:textSize="10sp" />
                 </LinearLayout>
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
