@@ -143,7 +143,7 @@ public class SettingsFragment extends Fragment {
                 if (isChecked) {
                     DailySummaryEmailService.scheduleDailySummary(requireContext());
                     Toast.makeText(requireContext(),
-                            "Daily summary enabled Tuesday through Saturday", Toast.LENGTH_LONG).show();
+                            "Daily summary enabled Monday through Saturday", Toast.LENGTH_LONG).show();
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         android.app.AlarmManager alarmManager =
                                 requireContext().getSystemService(android.app.AlarmManager.class);
@@ -172,17 +172,22 @@ public class SettingsFragment extends Fragment {
             });
         }
 
+        // Daily summary: choose content + recipient
+        MaterialButton btnSummaryContent = v.findViewById(R.id.btnDailySummaryContent);
+        if (btnSummaryContent != null) {
+            btnSummaryContent.setOnClickListener(view -> showSummaryContentDialog());
+        }
+        MaterialButton btnSummaryRecipient = v.findViewById(R.id.btnDailySummaryRecipient);
+        if (btnSummaryRecipient != null) {
+            updateSummaryRecipientButton(btnSummaryRecipient);
+            btnSummaryRecipient.setOnClickListener(view ->
+                    showSummaryRecipientDialog(btnSummaryRecipient));
+        }
+
         // Button: send daily summary now
         MaterialButton btnSendEmailNow = v.findViewById(R.id.btnSendDailyEmailNow);
         if (btnSendEmailNow != null) {
             btnSendEmailNow.setOnClickListener(view -> {
-                if (!DailySummaryEmailService.isSummaryDay(
-                        Calendar.getInstance().get(Calendar.DAY_OF_WEEK))) {
-                    Toast.makeText(requireContext(),
-                            "Daily summaries are available Tuesday through Saturday",
-                            Toast.LENGTH_LONG).show();
-                    return;
-                }
                 FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
                 if (user == null || user.isAnonymous() || user.getEmail() == null || user.getEmail().trim().isEmpty()) {
                     Toast.makeText(requireContext(), "No valid user email found", Toast.LENGTH_SHORT).show();
@@ -243,6 +248,69 @@ public class SettingsFragment extends Fragment {
         }
 
         return v;
+    }
+
+    private void showSummaryContentDialog() {
+        final String[] ids = DailySummaryReport.ITEM_IDS;
+        final String[] labels = DailySummaryReport.ITEM_LABELS;
+        final boolean[] checked = new boolean[ids.length];
+        for (int i = 0; i < ids.length; i++) {
+            checked[i] = DailySummaryEmailService.isItemEnabled(prefs, ids[i]);
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Include in the daily summary")
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) ->
+                        checked[which] = isChecked)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    SharedPreferences.Editor editor = prefs.edit();
+                    for (int i = 0; i < ids.length; i++) {
+                        editor.putBoolean(DailySummaryEmailService.KEY_ITEM_PREFIX + ids[i],
+                                checked[i]);
+                    }
+                    editor.apply();
+                    Toast.makeText(requireContext(), "Summary content saved",
+                            Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void updateSummaryRecipientButton(MaterialButton button) {
+        String saved = prefs.getString(DailySummaryEmailService.KEY_RECIPIENT, "");
+        button.setText(saved == null || saved.trim().isEmpty()
+                ? "Send to: my account email" : "Send to: " + saved.trim());
+    }
+
+    private void showSummaryRecipientDialog(MaterialButton button) {
+        final android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        input.setHint("name@example.com (separate several with commas)");
+        input.setText(prefs.getString(DailySummaryEmailService.KEY_RECIPIENT, ""));
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        android.widget.FrameLayout holder = new android.widget.FrameLayout(requireContext());
+        holder.setPadding(pad, pad / 2, pad, 0);
+        holder.addView(input);
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Who receives the summary?")
+                .setMessage("Leave empty to use your account email.")
+                .setView(holder)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String value = input.getText().toString().trim();
+                    if (!value.isEmpty()) {
+                        for (String part : value.split(",")) {
+                            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(part.trim()).matches()) {
+                                Toast.makeText(requireContext(),
+                                        "Invalid email: " + part.trim(), Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                        }
+                    }
+                    prefs.edit().putString(DailySummaryEmailService.KEY_RECIPIENT, value).apply();
+                    updateSummaryRecipientButton(button);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void updateDailySummaryTimeButton(MaterialButton button) {

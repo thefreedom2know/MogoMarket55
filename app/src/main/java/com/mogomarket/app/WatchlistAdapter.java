@@ -311,6 +311,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
     private String displaySymbol(String symbol) {
         if (symbol == null) return "";
         if (isCrypto(symbol)) return symbol.substring(symbol.indexOf(':') + 1);
+        if ("^VIX".equals(symbol)) return "VIX";
         return symbol.replace("=X", "").replace("=F", "");
     }
 
@@ -629,7 +630,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
         // Finnhub needs an API key; without one fall back to the free Yahoo chart API below.
         if (FINNHUB_KEY != null && !FINNHUB_KEY.trim().isEmpty()
                 && !isForex(requestSymbol) && !requestSymbol.endsWith("=F")
-                && !"^GSPC".equalsIgnoreCase(requestSymbol)) {
+                && !requestSymbol.startsWith("^")) {
             fetchFinnhubQuote(stock, holder, targetSymbol, requestSymbol, colorPrimary,
                     textSecondary, colorGain, colorLoss, ctx);
             return;

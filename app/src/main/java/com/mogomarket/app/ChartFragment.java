@@ -171,6 +171,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         FOREX_MAP.put("XBRUSD",  "BZ=F");
         FOREX_MAP.put("OIL",     "CL=F");
         FOREX_MAP.put("CRUDE",   "CL=F");
+        FOREX_MAP.put("VIX",     "^VIX");
+        FOREX_MAP.put("^VIX",    "^VIX");
+        FOREX_MAP.put("VIXINDEX","^VIX");
     }
 
     private boolean isDarkTheme;
@@ -336,6 +339,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private String cleanDisplaySymbol(String sym) {
         if (sym == null) return "";
         if (isCryptoSymbol(sym)) return sym.substring(sym.indexOf(':') + 1);
+        if ("^VIX".equals(sym)) return "VIX";
         return sym.replace("=X", "").replace("=F", "");
     }
 

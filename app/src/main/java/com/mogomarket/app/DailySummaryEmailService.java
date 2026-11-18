@@ -33,7 +33,9 @@ import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 
 public class DailySummaryEmailService extends BroadcastReceiver {
 
@@ -47,6 +49,8 @@ public class DailySummaryEmailService extends BroadcastReceiver {
     public static final String KEY_ENABLED = "daily_email_enabled";
     public static final String KEY_HOUR = "daily_email_hour";
     public static final String KEY_MINUTE = "daily_email_minute";
+    public static final String KEY_RECIPIENT = "daily_email_recipient";
+    public static final String KEY_ITEM_PREFIX = "daily_email_item_";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -74,7 +78,24 @@ public class DailySummaryEmailService extends BroadcastReceiver {
         DailySummaryEmailWorker.enqueueManual(context, showSuccessNotification);
     }
 
-    static boolean sendSummaryNow(Context context, long reportDateMillis,
+    /** Report window: since the previous summary day (Monday also covers the weekend). */
+    static long[] defaultReportWindow() {
+        Calendar end = Calendar.getInstance();
+        end.set(Calendar.HOUR_OF_DAY, 0);
+        end.set(Calendar.MINUTE, 0);
+        end.set(Calendar.SECOND, 0);
+        end.set(Calendar.MILLISECOND, 0);
+        Calendar start = (Calendar) end.clone();
+        start.add(Calendar.DAY_OF_YEAR,
+                end.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY ? -3 : -1);
+        return new long[]{start.getTimeInMillis(), end.getTimeInMillis()};
+    }
+
+    public static boolean isItemEnabled(SharedPreferences prefs, String itemId) {
+        return prefs.getBoolean(KEY_ITEM_PREFIX + itemId, true);
+    }
+
+    static boolean sendSummaryNow(Context context, long startMillis, long endMillis,
                                   boolean showSuccessNotification) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null || user.isAnonymous()) {
@@ -82,50 +103,68 @@ public class DailySummaryEmailService extends BroadcastReceiver {
             return false;
         }
 
-        String toEmail = user.getEmail();
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String recipients = prefs.getString(KEY_RECIPIENT, "");
+        String toEmail = recipients != null && !recipients.trim().isEmpty()
+                ? recipients.trim() : user.getEmail();
         if (toEmail == null || toEmail.trim().isEmpty()) {
-            Log.w(TAG, "Daily summary skipped: signed-in user has no email.");
+            Log.w(TAG, "Daily summary skipped: no recipient e-mail.");
             return false;
         }
 
         try {
-            Calendar reportDate = Calendar.getInstance();
-            reportDate.setTimeInMillis(reportDateMillis);
-            Calendar nextDay = (Calendar) reportDate.clone();
-            nextDay.add(Calendar.DAY_OF_YEAR, 1);
-            long startOfReportDay = reportDate.getTimeInMillis();
-            long endOfReportDay = nextDay.getTimeInMillis();
+            DailySummaryReport.Input input = new DailySummaryReport.Input();
+            for (String id : DailySummaryReport.ITEM_IDS) {
+                if (isItemEnabled(prefs, id)) input.enabledItems.add(id);
+            }
+            input.dateTitle = new SimpleDateFormat("EEEE, d MMMM yyyy", Locale.US)
+                    .format(new Date());
 
             com.google.firebase.database.DatabaseReference userRef =
                     FirebaseDatabase.getInstance().getReference("users").child(user.getUid());
-            DataSnapshot eventsSnapshot = Tasks.await(
-                    userRef.child("daily-trade-events").get(), 30, TimeUnit.SECONDS);
-            DataSnapshot openTradesSnapshot = Tasks.await(
-                    userRef.child("portfolio-stocks").get(), 30, TimeUnit.SECONDS);
-            DataSnapshot closedTradesSnapshot = Tasks.await(
-                    userRef.child("closed-trades").get(), 30, TimeUnit.SECONDS);
 
-            List<DailyTradeEvent> yesterdayTrades = new ArrayList<>();
-            for (DataSnapshot child : eventsSnapshot.getChildren()) {
-                DailyTradeEvent event = child.getValue(DailyTradeEvent.class);
-                if (event != null && event.closedAt >= startOfReportDay
-                        && event.closedAt < endOfReportDay) {
-                    yesterdayTrades.add(event);
+            if (input.enabledItems.contains(DailySummaryReport.ITEM_TRADES)) {
+                DataSnapshot eventsSnapshot = Tasks.await(
+                        userRef.child("daily-trade-events").get(), 30, TimeUnit.SECONDS);
+                for (DataSnapshot child : eventsSnapshot.getChildren()) {
+                    DailyTradeEvent event = child.getValue(DailyTradeEvent.class);
+                    if (event != null && event.closedAt >= startMillis
+                            && event.closedAt < endMillis) {
+                        input.trades.add(event);
+                    }
                 }
             }
 
-            List<StockData> openTrades = readTrades(openTradesSnapshot);
-            List<StockData> closedTrades = readTrades(closedTradesSnapshot);
-            PortfolioDailyPerformance.Result portfolioPerformance =
-                    PortfolioDailyPerformance.calculate(openTrades, closedTrades,
-                            startOfReportDay, endOfReportDay);
-            String dateText = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    .format(new Date(startOfReportDay));
-            String subject = "MogoMarket Daily Summary - " + dateText;
-            String body = buildSummaryBody(dateText, yesterdayTrades, portfolioPerformance);
-            return sendEmail(context, toEmail, subject, body, showSuccessNotification);
+            if (input.enabledItems.contains(DailySummaryReport.ITEM_PORTFOLIO)) {
+                DataSnapshot openSnapshot = Tasks.await(
+                        userRef.child("portfolio-stocks").get(), 30, TimeUnit.SECONDS);
+                DataSnapshot closedSnapshot = Tasks.await(
+                        userRef.child("closed-trades").get(), 30, TimeUnit.SECONDS);
+                List<StockData> openTrades = readTrades(openSnapshot);
+                List<StockData> closedTrades = readTrades(closedSnapshot);
+                input.openPositions = openTrades.size();
+                input.portfolio = PortfolioDailyPerformance.calculate(
+                        openTrades, closedTrades, startMillis, endMillis);
+            }
+
+            if (input.enabledItems.contains(DailySummaryReport.ITEM_WATCHLIST)) {
+                DataSnapshot watchSnapshot = Tasks.await(
+                        userRef.child("watchlist-stocks").get(), 30, TimeUnit.SECONDS);
+                for (DataSnapshot child : watchSnapshot.getChildren()) {
+                    String symbol = child.child("symbol").getValue(String.class);
+                    if (symbol != null && !symbol.trim().isEmpty() && !symbol.contains(":")) {
+                        input.watchlistSymbols.add(symbol.trim());
+                    }
+                }
+            }
+
+            DailySummaryReport.Rendered rendered = DailySummaryReport.build(input);
+            String subject = "MogoMarket Daily Summary - "
+                    + new SimpleDateFormat("EEE d MMM", Locale.US).format(new Date());
+            return sendEmail(context, toEmail, subject, rendered.text, rendered.html,
+                    showSuccessNotification);
         } catch (Exception e) {
-            Log.e(TAG, "Failed to load daily trading data", e);
+            Log.e(TAG, "Failed to build daily summary", e);
             return false;
         }
     }
@@ -139,59 +178,8 @@ public class DailySummaryEmailService extends BroadcastReceiver {
         return trades;
     }
 
-    private static String buildSummaryBody(String date, List<DailyTradeEvent> trades,
-                                          PortfolioDailyPerformance.Result portfolio) {
-        double totalProfitLoss = 0;
-        int wins = 0;
-        int losses = 0;
-        StringBuilder tradeLines = new StringBuilder();
-
-        for (DailyTradeEvent trade : trades) {
-            totalProfitLoss += trade.profitLoss;
-            if (trade.profitLoss > 0) wins++;
-            else if (trade.profitLoss < 0) losses++;
-
-            tradeLines.append("- ")
-                    .append(safe(trade.symbol))
-                    .append(" | Buy: ").append(formatMoney(trade.buyPrice))
-                    .append(" | Sell: ").append(formatMoney(trade.sellPrice))
-                    .append(" | P&L: ").append(formatSignedMoney(trade.profitLoss))
-                    .append('\n');
-        }
-
-        StringBuilder body = new StringBuilder()
-                .append("MogoMarket Daily Summary\n")
-                .append("Report for: ").append(date).append("\n\n")
-                .append("PORTFOLIO PERFORMANCE YESTERDAY\n")
-                .append("Daily P&L from held positions: ")
-                .append(formatSignedMoney(portfolio.profitLoss)).append('\n')
-                .append("Positions valued: ").append(portfolio.valuedPositions).append('\n');
-
-        if (portfolio.positionsWithoutAmount > 0) {
-            body.append("Positions without investment amounts (excluded): ")
-                    .append(portfolio.positionsWithoutAmount).append('\n');
-        }
-        body.append("Cash balance is excluded; no daily cash-flow history is available.\n\n");
-
-        if (trades.isEmpty()) {
-            body.append("No trades were closed yesterday.\n");
-        } else {
-            int winRate = Math.round(wins * 100f / trades.size());
-            body.append("CLOSED TRADES YESTERDAY\n")
-                    .append("Trades closed: ").append(trades.size()).append('\n')
-                    .append("Closed-trade P&L vs. entry: ")
-                    .append(formatSignedMoney(totalProfitLoss)).append('\n')
-                    .append("Winning trades: ").append(wins).append('\n')
-                    .append("Losing trades: ").append(losses).append('\n')
-                    .append("Win rate: ").append(winRate).append("%\n\n")
-                    .append("Trade details:\n")
-                    .append(tradeLines);
-        }
-
-        return body.append("\nGenerated automatically by MogoMarket.").toString();
-    }
-
-    private static boolean sendEmail(Context context, String toEmail, String subject, String body,
+    private static boolean sendEmail(Context context, String toEmail, String subject,
+                                     String plainText, String html,
                                      boolean showSuccessNotification) {
         String senderEmail = ApiConfig.smtpEmail();
         String senderPassword = ApiConfig.smtpPassword();
@@ -218,14 +206,22 @@ public class DailySummaryEmailService extends BroadcastReceiver {
                 }
             });
 
+            MimeBodyPart textPart = new MimeBodyPart();
+            textPart.setText(plainText, "UTF-8");
+            MimeBodyPart htmlPart = new MimeBodyPart();
+            htmlPart.setContent(html, "text/html; charset=UTF-8");
+            MimeMultipart multipart = new MimeMultipart("alternative");
+            multipart.addBodyPart(textPart);
+            multipart.addBodyPart(htmlPart); // last part = preferred by mail clients
+
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(senderEmail, "MogoMarket"));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             message.setSubject(subject);
-            message.setText(body);
+            message.setContent(multipart);
             Transport.send(message);
 
-            Log.i(TAG, "Daily summary sent for " + subject);
+            Log.i(TAG, "Daily summary sent: " + subject);
             if (showSuccessNotification) {
                 showNotification(context, "Daily summary sent", "The email was sent to " + toEmail);
             }
@@ -303,7 +299,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
     }
 
     static boolean isSummaryDay(int dayOfWeek) {
-        return dayOfWeek >= Calendar.TUESDAY && dayOfWeek <= Calendar.SATURDAY;
+        return dayOfWeek != Calendar.SUNDAY; // Monday through Saturday
     }
 
     public static void cancelDailySummary(Context context) {

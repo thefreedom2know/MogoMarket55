@@ -402,7 +402,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Receive a summary Tuesday through Saturday at your chosen time"
+                            android:text="Receive a summary Monday through Saturday at your chosen time"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:textSize="12sp"
                             android:layout_marginTop="2dp" />
@@ -418,6 +418,30 @@
                     android:layout_height="44dp"
                     android:layout_marginBottom="10dp"
                     android:text="Summary time: 08:00"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    app:strokeColor="?attr/colorPrimary"
+                    app:strokeWidth="1dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDailySummaryContent"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginBottom="10dp"
+                    android:text="Choose what to include"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    app:strokeColor="?attr/colorPrimary"
+                    app:strokeWidth="1dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDailySummaryRecipient"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginBottom="10dp"
+                    android:text="Send to: my account email"
                     android:textAllCaps="false"
                     android:textSize="14sp"
                     app:strokeColor="?attr/colorPrimary"
