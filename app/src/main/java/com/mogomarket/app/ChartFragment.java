@@ -1136,9 +1136,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         content.addView(subtitle, subtitleParams);
 
         TextView timeframeTitle = new TextView(context);
-        timeframeTitle.setText("Timeframe");
-        timeframeTitle.setTextColor(primaryText);
-        timeframeTitle.setTextSize(13f);
+        timeframeTitle.setText("TIMEFRAME");
+        timeframeTitle.setTextColor(secondaryText);
+        timeframeTitle.setTextSize(11f);
+        timeframeTitle.setLetterSpacing(0.08f);
         timeframeTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams timeframeTitleParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -1196,33 +1197,52 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         }
         updateChartMenuTimeframeButtons(timeframeButtons, timeframeIndices);
 
-        addChartMenuOption(content, isCandleStick ? "▤" : "⌁",
-                isCandleStick ? "Line chart" : "Candlestick chart",
-                "Change how price data is displayed", primaryText, secondaryText, surface,
-                () -> toggleChartType(), dialogHolder);
-        addChartMenuOption(content, "◷", "Visible range",
-                "Currently " + visibleChartRange.toUpperCase(Locale.US),
-                primaryText, secondaryText, surface,
-                this::showVisibleRangeDialog, dialogHolder);
-        addChartMenuOption(content, "150", "150-day moving average",
-                showMa150 ? "Currently on" : "Currently off",
-                primaryText, secondaryText, surface,
-                this::toggleMa150, dialogHolder);
-        addChartMenuOption(content, "▮", "Volume",
-                showVolume ? "Shown on candlestick chart" : "Currently off",
-                primaryText, secondaryText, surface,
-                this::toggleVolume, dialogHolder);
+        TextView displayTitle = new TextView(context);
+        displayTitle.setText("DISPLAY");
+        displayTitle.setTextColor(secondaryText);
+        displayTitle.setTextSize(11f);
+        displayTitle.setLetterSpacing(0.08f);
+        displayTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        LinearLayout.LayoutParams displayTitleParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        displayTitleParams.bottomMargin = dpToPx(8);
+        content.addView(displayTitle, displayTitleParams);
+
+        List<Object[]> tiles = new ArrayList<>();
+        tiles.add(new Object[]{isCandleStick ? "\u25A4" : "\u2301",
+                isCandleStick ? "Line chart" : "Candlesticks",
+                isCandleStick ? "Switch to line" : "Switch to candles", false,
+                (Runnable) () -> toggleChartType()});
+        tiles.add(new Object[]{"\u25F7", "Visible range",
+                visibleChartRange.toUpperCase(Locale.US), false,
+                (Runnable) this::showVisibleRangeDialog});
+        tiles.add(new Object[]{"150", "150-day MA", showMa150 ? "On" : "Off", showMa150,
+                (Runnable) this::toggleMa150});
+        tiles.add(new Object[]{"\u25AE", "Volume", showVolume ? "On" : "Off", showVolume,
+                (Runnable) this::toggleVolume});
         if (showVolume) {
-            addChartMenuOption(content, "◐", "Volume colors",
-                    volumeColorByOpen ? "By candle (open → close)" : "By daily change (vs previous close)",
-                    primaryText, secondaryText, surface,
-                    this::toggleVolumeColorMode, dialogHolder);
+            tiles.add(new Object[]{"\u25D0", "Volume colors",
+                    volumeColorByOpen ? "By candle" : "By daily change", false,
+                    (Runnable) this::toggleVolumeColorMode});
         }
-        addChartMenuOption(content, "✦", "AI analysis",
-                "Ask AI about " + symbol, primaryText, secondaryText, surface,
-                () -> AiChatDialog.showForChart(requireContext(),
-                        cleanDisplaySymbol(symbol), buildChartAiContext()),
-                dialogHolder);
+        for (int i = 0; i < tiles.size(); i += 2) {
+            LinearLayout tileRow = new LinearLayout(context);
+            tileRow.setOrientation(LinearLayout.HORIZONTAL);
+            addChartMenuTile(tileRow, tiles.get(i), primaryText, secondaryText, dialogHolder, false);
+            if (i + 1 < tiles.size()) {
+                addChartMenuTile(tileRow, tiles.get(i + 1), primaryText, secondaryText,
+                        dialogHolder, true);
+            } else {
+                View filler = new View(context);
+                LinearLayout.LayoutParams fillerParams = new LinearLayout.LayoutParams(0, 1, 1f);
+                fillerParams.leftMargin = dpToPx(8);
+                tileRow.addView(filler, fillerParams);
+            }
+            LinearLayout.LayoutParams tileRowParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            tileRowParams.bottomMargin = dpToPx(8);
+            content.addView(tileRow, tileRowParams);
+        }
 
         dialogHolder[0] = new AlertDialog.Builder(context)
                 .setView(content)
@@ -1343,6 +1363,68 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    /** One square option tile: icon on top, name, and its current state underneath. */
+    private void addChartMenuTile(LinearLayout row, Object[] tile, int primaryText,
+                                  int secondaryText, AlertDialog[] dialogHolder,
+                                  boolean withLeftGap) {
+        Context context = row.getContext();
+        String icon = (String) tile[0];
+        String label = (String) tile[1];
+        String status = (String) tile[2];
+        boolean active = (Boolean) tile[3];
+        Runnable action = (Runnable) tile[4];
+
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        card.setPadding(dpToPx(8), dpToPx(14), dpToPx(8), dpToPx(12));
+        card.setClickable(true);
+        card.setFocusable(true);
+
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setColor(active ? (isChartDark ? 0xFF1E2A3A : 0xFFE1EEFC)
+                : (isChartDark ? 0xFF0B0F14 : 0xFFF0F4F8));
+        bg.setCornerRadius(dpToPx(16));
+        bg.setStroke(dpToPx(1), active ? context.getColor(R.color.chart_gold)
+                : context.getColor(R.color.colorBorder));
+        card.setBackground(bg);
+
+        TextView iconView = new TextView(context);
+        iconView.setText(icon);
+        iconView.setTextSize(22f);
+        iconView.setTextColor(COLOR_PRIMARY);
+        iconView.setGravity(android.view.Gravity.CENTER);
+        card.addView(iconView);
+
+        TextView labelView = new TextView(context);
+        labelView.setText(label);
+        labelView.setTextColor(primaryText);
+        labelView.setTextSize(13f);
+        labelView.setTypeface(null, android.graphics.Typeface.BOLD);
+        labelView.setGravity(android.view.Gravity.CENTER);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        labelParams.topMargin = dpToPx(6);
+        card.addView(labelView, labelParams);
+
+        TextView statusView = new TextView(context);
+        statusView.setText(status);
+        statusView.setTextColor(active ? context.getColor(R.color.chart_gold) : secondaryText);
+        statusView.setTextSize(11f);
+        statusView.setGravity(android.view.Gravity.CENTER);
+        card.addView(statusView);
+
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        if (withLeftGap) cardParams.leftMargin = dpToPx(8);
+        row.addView(card, cardParams);
+
+        card.setOnClickListener(view -> {
+            if (dialogHolder[0] != null) dialogHolder[0].dismiss();
+            action.run();
+        });
     }
 
     private void addChartMenuOption(LinearLayout parent, String icon, String label, String description,
