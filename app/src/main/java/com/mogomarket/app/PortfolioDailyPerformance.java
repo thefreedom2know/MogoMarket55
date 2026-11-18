@@ -6,7 +6,18 @@ import java.util.Locale;
 
 public class PortfolioDailyPerformance {
 
+    /** One open position: how much it moved today and since entry. */
+    public static class Position {
+        public String symbol;
+        public double value;
+        public double dailyPnl;
+        public double dailyPercent;
+        public double totalPnl;
+        public double totalPercent;
+    }
+
     public static class Result {
+        public List<Position> positions = new ArrayList<>();
         public double profitLoss;          // same as dailyPnl (kept for older callers)
         public double totalPnl;            // unrealized P&L since entry
         public double dailyPnl;            // today's change in dollars
@@ -69,6 +80,15 @@ public class PortfolioDailyPerformance {
             double value = stock.tradeAmount * price / stock.buyPrice;
             double factor = 1.0 + dayPercent / 100.0;
             double previousValue = factor > 0 ? value / factor : value;
+
+            Position position = new Position();
+            position.symbol = stock.symbol == null ? "N/A" : stock.symbol;
+            position.value = value;
+            position.dailyPnl = value - previousValue;
+            position.dailyPercent = dayPercent;
+            position.totalPnl = value - stock.tradeAmount;
+            position.totalPercent = (value / stock.tradeAmount - 1.0) * 100.0;
+            result.positions.add(position);
 
             result.invested += stock.tradeAmount;
             result.marketValue += value;

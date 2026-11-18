@@ -322,6 +322,40 @@ final class DailySummaryReport {
                 kvRow(h, s("Open positions", "פוזיציות פתוחות"),
                         String.valueOf(in.openPositions), null);
                 h.append("</table>");
+                if (!p.positions.isEmpty()) {
+                    List<PortfolioDailyPerformance.Position> sorted = new ArrayList<>(p.positions);
+                    Collections.sort(sorted, (a, b) -> Double.compare(b.dailyPnl, a.dailyPnl));
+                    h.append("<div style=\"font-size:12px;font-weight:bold;color:").append(GRAY)
+                            .append(";margin:16px 0 4px;\">")
+                            .append(s("Each position", "כל פוזיציה")).append("</div>")
+                            .append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+                            .append("style=\"border-collapse:collapse;\">")
+                            .append("<tr><td style=\"font-size:11px;color:").append(GRAY)
+                            .append(";padding:4px 0;\">").append(s("Stock", "מניה")).append("</td>")
+                            .append("<td align=\"").append(endAlign())
+                            .append("\" style=\"font-size:11px;color:").append(GRAY)
+                            .append(";padding:4px 0;\">").append(s("Today", "היום")).append("</td>")
+                            .append("<td align=\"").append(endAlign())
+                            .append("\" style=\"font-size:11px;color:").append(GRAY)
+                            .append(";padding:4px 0 4px 14px;\">")
+                            .append(s("Since entry", "מאז הכניסה")).append("</td></tr>");
+                    t.append(s("Each position (today | since entry):",
+                            "כל פוזיציה (היום | מאז הכניסה):")).append('\n');
+                    for (PortfolioDailyPerformance.Position pos : sorted) {
+                        h.append("<tr><td style=\"padding:8px 0;border-top:1px solid #e5e7eb;")
+                                .append("font-weight:bold;font-size:14px;\">")
+                                .append(esc(pos.symbol)).append("</td>");
+                        moneyPctCell(h, pos.dailyPnl, pos.dailyPercent, "8px 0");
+                        moneyPctCell(h, pos.totalPnl, pos.totalPercent, "8px 0 8px 14px");
+                        h.append("</tr>");
+                        t.append(pos.symbol).append(": ").append(fmtSignedMoney(pos.dailyPnl))
+                                .append(" (").append(fmtPct(pos.dailyPercent)).append(")  |  ")
+                                .append(fmtSignedMoney(pos.totalPnl)).append(" (")
+                                .append(fmtPct(pos.totalPercent)).append(")\n");
+                    }
+                    h.append("</table>");
+                    t.append('\n');
+                }
                 t.append(s("Today's P&L: ", "רווח/הפסד יומי: ")).append(fmtSignedMoney(p.dailyPnl))
                         .append(" (").append(fmtPct(p.dailyReturnPercent)).append(")\n")
                         .append(s("Portfolio value: ", "שווי התיק: ")).append(fmtMoney(p.marketValue))
@@ -370,10 +404,12 @@ final class DailySummaryReport {
                             .append("\" style=\"padding:7px 0;")
                             .append("border-top:1px solid #e5e7eb;font-weight:bold;color:")
                             .append(c).append(";\">").append(fmtSignedMoney(tr.profitLoss))
-                            .append("</td></tr>");
+                            .append("<div style=\"font-size:12px;font-weight:normal;\">")
+                            .append(fmtPct(tradePercent(tr))).append("</div></td></tr>");
                     t.append(safe(tr.symbol)).append("  ").append(fmtMoney(tr.buyPrice))
                             .append(" -> ").append(fmtMoney(tr.sellPrice)).append("  ")
-                            .append(fmtSignedMoney(tr.profitLoss)).append('\n');
+                            .append(fmtSignedMoney(tr.profitLoss)).append(" (")
+                            .append(fmtPct(tradePercent(tr))).append(")\n");
                 }
                 int winRate = Math.round(wins * 100f / in.trades.size());
                 h.append("<div style=\"font-size:13px;color:").append(GRAY).append(";\">")
@@ -468,6 +504,20 @@ final class DailySummaryReport {
     private static String muted(String text) {
         return "<div style=\"font-size:13px;color:" + GRAY + ";margin-top:6px;\">" + text
                 + "</div>";
+    }
+
+    private static double tradePercent(DailyTradeEvent tr) {
+        return tr.buyPrice > 0 ? (tr.sellPrice - tr.buyPrice) / tr.buyPrice * 100.0 : Double.NaN;
+    }
+
+    private static void moneyPctCell(StringBuilder h, double money, double pct, String padding) {
+        String color = money >= 0 ? GREEN : RED;
+        h.append("<td dir=\"ltr\" align=\"").append(endAlign())
+                .append("\" style=\"padding:").append(padding)
+                .append(";border-top:1px solid #e5e7eb;font-size:14px;font-weight:bold;color:")
+                .append(color).append(";\">").append(fmtSignedMoney(money))
+                .append("<div style=\"font-size:12px;font-weight:normal;\">")
+                .append(fmtPct(pct)).append("</div></td>");
     }
 
     private static void kvRow(StringBuilder h, String label, String value, @Nullable String color) {
