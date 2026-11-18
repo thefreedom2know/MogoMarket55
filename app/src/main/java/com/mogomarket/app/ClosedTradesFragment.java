@@ -197,6 +197,16 @@ public class ClosedTradesFragment extends Fragment {
         }
 
         btnAnalyze.setOnClickListener(view -> showAiTradeAnalysis());
+        final View detailsToggle = v.findViewById(R.id.closedDetailsToggle);
+        final View detailsContainer = v.findViewById(R.id.closedDetailsContainer);
+        final View detailsArrow = v.findViewById(R.id.closedDetailsArrow);
+        if (detailsToggle != null && detailsContainer != null && detailsArrow != null) {
+            detailsToggle.setOnClickListener(view -> {
+                boolean show = detailsContainer.getVisibility() != View.VISIBLE;
+                detailsContainer.setVisibility(show ? View.VISIBLE : View.GONE);
+                detailsArrow.animate().rotation(show ? 180f : 0f).setDuration(180L).start();
+            });
+        }
         View btnJournal = v.findViewById(R.id.btnJournal);
         if (btnJournal != null) {
             btnJournal.setOnClickListener(view ->
