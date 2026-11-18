@@ -411,65 +411,114 @@
 
                 </LinearLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDailySummaryTime"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginBottom="10dp"
-                    android:text="Summary time: 08:00"
-                    android:textAllCaps="false"
-                    android:textSize="14sp"
-                    app:strokeColor="?attr/colorPrimary"
-                    app:strokeWidth="1dp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:text="EMAIL SETTINGS"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDailySummaryContent"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="wrap_content"
                     android:layout_marginBottom="10dp"
-                    android:text="Choose what to include"
-                    android:textAllCaps="false"
-                    android:textSize="14sp"
-                    app:strokeColor="?attr/colorPrimary"
-                    app:strokeWidth="1dp" />
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDailySummaryLanguage"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginBottom="10dp"
-                    android:text="Email language: English"
-                    android:textAllCaps="false"
-                    android:textSize="14sp"
-                    app:strokeColor="?attr/colorPrimary"
-                    app:strokeWidth="1dp" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDailySummaryTime"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="60dp"
+                        android:text="Summary time: 08:00"
+                        android:textAllCaps="false"
+                        android:textSize="13sp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        app:cornerRadius="14dp"
+                        app:strokeColor="@color/pf_3322d3ee"
+                        app:strokeWidth="1dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDailySummaryRecipient"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="1dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDailySummaryLanguage"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="60dp"
+                        android:text="Email language: English"
+                        android:textAllCaps="false"
+                        android:textSize="13sp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        app:cornerRadius="14dp"
+                        app:strokeColor="@color/pf_3322d3ee"
+                        app:strokeWidth="1dp" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="wrap_content"
                     android:layout_marginBottom="10dp"
-                    android:text="Send to: my account email"
-                    android:textAllCaps="false"
-                    android:textSize="14sp"
-                    app:strokeColor="?attr/colorPrimary"
-                    app:strokeWidth="1dp" />
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDailySummaryContent"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="60dp"
+                        android:text="Choose what to include"
+                        android:textAllCaps="false"
+                        android:textSize="13sp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        app:cornerRadius="14dp"
+                        app:strokeColor="@color/pf_3322d3ee"
+                        app:strokeWidth="1dp" />
+
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="1dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDailySummaryRecipient"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="60dp"
+                        android:text="Send to: my account email"
+                        android:textAllCaps="false"
+                        android:textSize="13sp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        app:cornerRadius="14dp"
+                        app:strokeColor="@color/pf_3322d3ee"
+                        app:strokeWidth="1dp" />
+                </LinearLayout>
 
                 <!-- Button: Send now -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSendDailyEmailNow"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="4dp"
                     android:text="&#128231; Send daily summary now"
                     android:textAllCaps="false"
                     android:textSize="14sp"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    app:strokeColor="?attr/colorPrimary"
-                    app:strokeWidth="1dp" />
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    app:cornerRadius="14dp" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -566,66 +615,107 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
-                <EditText
-                    android:id="@+id/etDefaultSymbol"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:hint="e.g. AAPL, TSLA, BTC"
-                    android:inputType="textCapCharacters"
-                    android:textSize="15sp"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textColorHint="?attr/colorOnSurfaceVariant"
-                    android:padding="12dp"
-                    android:background="@drawable/bg_search_input"
-                    android:singleLine="true"
-                    android:imeOptions="actionDone" />
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSaveDefaultSymbol"
+                    <EditText
+                        android:id="@+id/etDefaultSymbol"
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:hint="e.g. AAPL, TSLA, BTC"
+                        android:inputType="textCapCharacters"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
+                        android:padding="12dp"
+                        android:background="@drawable/bg_search_input"
+                        android:singleLine="true"
+                        android:imeOptions="actionDone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSaveDefaultSymbol"
+                        android:layout_width="wrap_content"
+                        android:layout_height="52dp"
+                        android:layout_marginStart="8dp"
+                        android:text="Save"
+                        android:textAllCaps="false"
+                        app:backgroundTint="?attr/colorPrimary"
+                        app:cornerRadius="14dp" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="10dp"
-                    android:text="Save Default Symbol"
-                    android:textAllCaps="false"
-                    app:backgroundTint="?attr/colorPrimary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="Default chart timeframe"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDefaultChartTimeframe"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="8dp"
-                    android:text="1Y"
-                    android:textAllCaps="false"
-                    app:strokeWidth="1dp" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="Chart change percentage"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="DEFAULT TIMEFRAME"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnChartChangePercentage"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="8dp"
-                    android:text="Selected timeframe"
-                    android:textAllCaps="false"
-                    app:strokeWidth="1dp" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnDefaultChartTimeframe"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:minHeight="52dp"
+                            android:text="1Y"
+                            android:textAllCaps="false"
+                            android:textSize="13sp"
+                            app:cornerRadius="14dp"
+                            app:strokeColor="@color/pf_3322d3ee"
+                            app:strokeWidth="1dp" />
+                    </LinearLayout>
+
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="1dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CHANGE PERCENTAGE"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnChartChangePercentage"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:minHeight="52dp"
+                            android:text="Selected timeframe"
+                            android:textAllCaps="false"
+                            android:textSize="13sp"
+                            app:cornerRadius="14dp"
+                            app:strokeColor="@color/pf_3322d3ee"
+                            app:strokeWidth="1dp" />
+                    </LinearLayout>
+                </LinearLayout>
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -808,29 +898,41 @@
                     android:layout_marginBottom="12dp"
                     android:background="@color/colorDivider" />
 
-                <!-- Log Out -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSettingsLogout"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:text="Log Out"
-                    android:textAllCaps="false"
-                    android:textColor="@color/white"
-                    app:backgroundTint="@color/colorLoss" />
+                    android:layout_height="wrap_content"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
 
-                <!-- Delete Account -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDeleteAccount"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="10dp"
-                    android:text="🗑 Delete Account"
-                    android:textAllCaps="false"
-                    android:textColor="@color/colorLoss"
-                    android:textSize="14sp"
-                    app:strokeColor="@color/colorLoss"
-                    app:strokeWidth="1dp" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSettingsLogout"
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:text="Log Out"
+                        android:textAllCaps="false"
+                        android:textColor="@color/white"
+                        app:backgroundTint="@color/colorLoss"
+                        app:cornerRadius="14dp" />
+
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="1dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDeleteAccount"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:text="🗑 Delete Account"
+                        android:textAllCaps="false"
+                        android:textColor="@color/colorLoss"
+                        android:textSize="13sp"
+                        app:cornerRadius="14dp"
+                        app:strokeColor="@color/colorLoss"
+                        app:strokeWidth="1dp" />
+                </LinearLayout>
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
