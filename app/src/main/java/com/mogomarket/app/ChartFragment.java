@@ -1240,7 +1240,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             }
             LinearLayout.LayoutParams tileRowParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            tileRowParams.bottomMargin = dpToPx(8);
+            tileRowParams.bottomMargin = dpToPx(6);
             content.addView(tileRow, tileRowParams);
         }
 
@@ -1379,21 +1379,21 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-        card.setPadding(dpToPx(8), dpToPx(14), dpToPx(8), dpToPx(12));
+        card.setPadding(dpToPx(6), dpToPx(8), dpToPx(6), dpToPx(8));
         card.setClickable(true);
         card.setFocusable(true);
 
         android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
         bg.setColor(active ? (isChartDark ? 0xFF1E2A3A : 0xFFE1EEFC)
                 : (isChartDark ? 0xFF0B0F14 : 0xFFF0F4F8));
-        bg.setCornerRadius(dpToPx(16));
+        bg.setCornerRadius(dpToPx(14));
         bg.setStroke(dpToPx(1), active ? context.getColor(R.color.chart_gold)
                 : context.getColor(R.color.colorBorder));
         card.setBackground(bg);
 
         TextView iconView = new TextView(context);
         iconView.setText(icon);
-        iconView.setTextSize(22f);
+        iconView.setTextSize(17f);
         iconView.setTextColor(COLOR_PRIMARY);
         iconView.setGravity(android.view.Gravity.CENTER);
         card.addView(iconView);
@@ -1401,18 +1401,18 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         TextView labelView = new TextView(context);
         labelView.setText(label);
         labelView.setTextColor(primaryText);
-        labelView.setTextSize(13f);
+        labelView.setTextSize(12f);
         labelView.setTypeface(null, android.graphics.Typeface.BOLD);
         labelView.setGravity(android.view.Gravity.CENTER);
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        labelParams.topMargin = dpToPx(6);
+        labelParams.topMargin = dpToPx(2);
         card.addView(labelView, labelParams);
 
         TextView statusView = new TextView(context);
         statusView.setText(status);
         statusView.setTextColor(active ? context.getColor(R.color.chart_gold) : secondaryText);
-        statusView.setTextSize(11f);
+        statusView.setTextSize(10f);
         statusView.setGravity(android.view.Gravity.CENTER);
         card.addView(statusView);
 
