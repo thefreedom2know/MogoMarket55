@@ -31,7 +31,10 @@ public final class ApiConfig {
 
     // ---- Groq (free tier, needs GROQ_API_KEY): AI chat, OpenAI-compatible ----
     public static final String GROQ_CHAT = "https://api.groq.com/openai/v1/chat/completions";
-    public static final String GROQ_MODEL = "llama-3.3-70b-versatile";
+    // Tried in order: if the account has no access to one, the next is used.
+    public static final String[] GROQ_MODELS = {
+            "openai/gpt-oss-120b", "llama-3.3-70b-versatile",
+            "openai/gpt-oss-20b", "llama-3.1-8b-instant"};
 
     // ---- EmailJS: sending emails ----
     public static final String EMAILJS_SEND = "https://api.emailjs.com/api/v1.0/email/send";

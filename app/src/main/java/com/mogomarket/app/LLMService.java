@@ -158,13 +158,26 @@ public class LLMService {
         sendToGemini(prompt, callback);
     }
 
-    // Groq - ממשק תואם OpenAI (chat/completions)
+    // המודל שעבד בפעם האחרונה (נשמר כדי לא לנסות שוב מודלים שאין אליהם גישה)
+    private static volatile int groqModelStart = 0;
+
     private void sendToGroq(String prompt, AnalysisCallback callback) {
+        sendToGroq(prompt, callback, groqModelStart);
+    }
+
+    // Groq - ממשק תואם OpenAI (chat/completions); עובר למודל הבא אם אין גישה למודל
+    private void sendToGroq(String prompt, AnalysisCallback callback, int modelIndex) {
+        if (modelIndex >= ApiConfig.GROQ_MODELS.length) {
+            notifyError(callback, "לחשבון ה-Groq שלך אין גישה לאף אחד מהמודלים. "
+                    + "בדוק את ההגדרות ב-console.groq.com (Settings > Limits).");
+            return;
+        }
+        final String model = ApiConfig.GROQ_MODELS[modelIndex];
         JSONObject requestBody = new JSONObject();
         try {
             JSONArray messages = new JSONArray()
                     .put(new JSONObject().put("role", "user").put("content", prompt));
-            requestBody.put("model", ApiConfig.GROQ_MODEL);
+            requestBody.put("model", model);
             requestBody.put("messages", messages);
             requestBody.put("temperature", 0.4);
         } catch (Exception e) {
@@ -193,8 +206,15 @@ public class LLMService {
                     notifyError(callback, "המכסה של Groq נגמרה זמנית. נסה שוב בעוד דקה.");
                     return;
                 }
-                if (response.code() == 401 || response.code() == 403) {
+                if (response.code() == 401) {
                     notifyError(callback, "Groq דחה את המפתח. בדוק את GROQ_API_KEY.");
+                    return;
+                }
+                boolean noModelAccess = response.code() == 404 || response.code() == 403
+                        || (response.code() == 400 && responseBody.contains("model"));
+                if (noModelAccess) {
+                    android.util.Log.w("LLM", "Groq model unavailable: " + model);
+                    sendToGroq(prompt, callback, modelIndex + 1);
                     return;
                 }
                 if (!response.isSuccessful()) {
@@ -209,6 +229,7 @@ public class LLMService {
                         notifyError(callback, "לא התקבלה תשובה מה-AI");
                         return;
                     }
+                    groqModelStart = modelIndex; // זכור את המודל שעובד
                     new Handler(Looper.getMainLooper()).post(() ->
                             callback.onAnalysisReceived(text));
                 } catch (Exception e) {
