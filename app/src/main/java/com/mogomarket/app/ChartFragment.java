@@ -171,6 +171,11 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         FOREX_MAP.put("XBRUSD",  "BZ=F");
         FOREX_MAP.put("OIL",     "CL=F");
         FOREX_MAP.put("CRUDE",   "CL=F");
+        FOREX_MAP.put("WTI",     "CL=F");
+        FOREX_MAP.put("USOIL",   "CL=F");
+        FOREX_MAP.put("CRUDEOIL","CL=F");
+        FOREX_MAP.put("BRENT",   "BZ=F");
+        FOREX_MAP.put("UKOIL",   "BZ=F");
         FOREX_MAP.put("VIX",     "^VIX");
         FOREX_MAP.put("^VIX",    "^VIX");
         FOREX_MAP.put("VIXINDEX","^VIX");
@@ -340,6 +345,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         if (sym == null) return "";
         if (isCryptoSymbol(sym)) return sym.substring(sym.indexOf(':') + 1);
         if ("^VIX".equals(sym)) return "VIX";
+        if ("CL=F".equals(sym)) return "OIL";
+        if ("BZ=F".equals(sym)) return "BRENT";
         return sym.replace("=X", "").replace("=F", "");
     }
 

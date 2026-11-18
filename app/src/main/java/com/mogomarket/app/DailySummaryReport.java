@@ -20,7 +20,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-/** Gathers market data and renders the daily summary e-mail (HTML + plain text). */
+/** Gathers market data and renders the daily summary e-mail (HTML + plain text, EN or HE). */
 final class DailySummaryReport {
     private DailySummaryReport() {}
 
@@ -43,11 +43,15 @@ final class DailySummaryReport {
             "My portfolio P&L", "Trades I closed", "Watchlist top movers",
             "Best / worst S&P sectors"};
 
+    // {ticker, English name, Hebrew name}
     private static final String[][] SECTORS = {
-            {"XLK", "Technology"}, {"XLF", "Financials"}, {"XLV", "Health Care"},
-            {"XLY", "Consumer Discretionary"}, {"XLP", "Consumer Staples"},
-            {"XLE", "Energy"}, {"XLI", "Industrials"}, {"XLB", "Materials"},
-            {"XLU", "Utilities"}, {"XLRE", "Real Estate"}, {"XLC", "Communication Services"}};
+            {"XLK", "Technology", "טכנולוגיה"}, {"XLF", "Financials", "פיננסים"},
+            {"XLV", "Health Care", "בריאות"},
+            {"XLY", "Consumer Discretionary", "צריכה מחזורית"},
+            {"XLP", "Consumer Staples", "צריכה בסיסית"},
+            {"XLE", "Energy", "אנרגיה"}, {"XLI", "Industrials", "תעשייה"},
+            {"XLB", "Materials", "חומרי גלם"}, {"XLU", "Utilities", "תשתיות"},
+            {"XLRE", "Real Estate", "נדל\"ן"}, {"XLC", "Communication Services", "תקשורת"}};
 
     private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -57,6 +61,17 @@ final class DailySummaryReport {
     private static final String GREEN = "#16a34a";
     private static final String RED = "#dc2626";
     private static final String GRAY = "#6b7280";
+
+    // Language of the report being built (set at the start of build()).
+    private static boolean he;
+
+    private static String s(String en, String hebrew) {
+        return he ? hebrew : en;
+    }
+
+    private static String endAlign() {
+        return he ? "left" : "right";
+    }
 
     static final class Quote {
         final String label;
@@ -80,6 +95,7 @@ final class DailySummaryReport {
     }
 
     static final class Input {
+        boolean hebrew;
         List<String> enabledItems = new ArrayList<>();
         String dateTitle;
         List<DailyTradeEvent> trades = new ArrayList<>();
@@ -112,7 +128,7 @@ final class DailySummaryReport {
         }
     }
 
-    private static void loadAll(List<Quote> quotes) {
+    static void loadAll(List<Quote> quotes) {
         if (quotes.isEmpty()) return;
         ExecutorService pool = Executors.newFixedThreadPool(Math.min(6, quotes.size()));
         try {
@@ -141,16 +157,20 @@ final class DailySummaryReport {
     // -------------------------------------------------------------------------------------
 
     static Rendered build(Input in) {
+        he = in.hebrew;
+
         List<Quote> market = new ArrayList<>();
-        addIf(in, market, ITEM_SPX, "S&P 500", "^GSPC");
-        addIf(in, market, ITEM_QQQ, "QQQ (Nasdaq 100)", "QQQ");
-        addIf(in, market, ITEM_RSP, "RSP (equal-weight S&P)", "RSP");
-        addIf(in, market, ITEM_VIX, "VIX (volatility)", "^VIX");
-        addIf(in, market, ITEM_OIL, "Oil (WTI crude)", "CL=F");
+        addIf(in, market, ITEM_SPX, "S&P 500", "S&P 500", "^GSPC");
+        addIf(in, market, ITEM_QQQ, "QQQ (Nasdaq 100)", "QQQ (נאסד\"ק 100)", "QQQ");
+        addIf(in, market, ITEM_RSP, "RSP (equal-weight S&P)", "RSP (S&P במשקל שווה)", "RSP");
+        addIf(in, market, ITEM_VIX, "VIX (volatility)", "VIX (מדד התנודתיות)", "^VIX");
+        addIf(in, market, ITEM_OIL, "Oil (WTI crude)", "נפט (WTI)", "CL=F");
 
         List<Quote> sectors = new ArrayList<>();
         if (in.enabledItems.contains(ITEM_SECTORS)) {
-            for (String[] s : SECTORS) sectors.add(new Quote(s[1] + " (" + s[0] + ")", s[0]));
+            for (String[] sec : SECTORS) {
+                sectors.add(new Quote((he ? sec[2] : sec[1]) + " (" + sec[0] + ")", sec[0]));
+            }
         }
 
         List<Quote> watch = new ArrayList<>();
@@ -171,32 +191,38 @@ final class DailySummaryReport {
 
         StringBuilder h = new StringBuilder();
         StringBuilder t = new StringBuilder();
+        String dir = he ? "rtl" : "ltr";
+        String align = he ? "right" : "left";
+        String na = s("n/a", "-");
+        String unavailable = s("Currently unavailable.", "לא זמין כרגע.");
 
-        h.append("<html><body style=\"margin:0;padding:0;background:#f3f4f6;\">")
-                .append("<div style=\"max-width:600px;margin:0 auto;padding:16px;")
-                .append("font-family:Arial,Helvetica,sans-serif;color:#111827;\">")
+        h.append("<html dir=\"").append(dir).append("\"><body dir=\"").append(dir)
+                .append("\" style=\"margin:0;padding:0;background:#f3f4f6;\">")
+                .append("<div dir=\"").append(dir).append("\" style=\"max-width:600px;")
+                .append("margin:0 auto;padding:16px;text-align:").append(align)
+                .append(";font-family:Arial,Helvetica,sans-serif;color:#111827;\">")
                 .append("<div style=\"background:#0f172a;color:#ffffff;padding:20px 22px;")
                 .append("border-radius:14px 14px 0 0;\">")
                 .append("<div style=\"font-size:13px;color:#94a3b8;letter-spacing:1px;\">")
                 .append("MOGOMARKET</div>")
                 .append("<div style=\"font-size:24px;font-weight:bold;margin-top:4px;\">")
-                .append("Daily Summary</div>")
+                .append(s("Daily Summary", "סיכום יומי")).append("</div>")
                 .append("<div style=\"font-size:14px;color:#cbd5e1;margin-top:4px;\">")
                 .append(esc(in.dateTitle)).append("</div></div>")
                 .append("<div style=\"background:#ffffff;padding:6px 22px 22px;")
                 .append("border-radius:0 0 14px 14px;\">");
-        t.append("MogoMarket Daily Summary\n").append(in.dateTitle).append("\n\n");
+        t.append("MogoMarket - ").append(s("Daily Summary", "סיכום יומי")).append('\n')
+                .append(in.dateTitle).append("\n\n");
 
         // --- Market snapshot ---
         if (!market.isEmpty()) {
-            section(h, "Market snapshot");
-            t.append("MARKET SNAPSHOT\n");
-            h.append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
-                    .append("style=\"border-collapse:collapse;\">");
+            section(h, s("Market snapshot", "תמונת שוק"));
+            t.append(s("MARKET SNAPSHOT", "תמונת שוק")).append('\n');
+            tableOpen(h);
             for (Quote q : market) {
                 quoteRow(h, q.label, q);
-                t.append(String.format(Locale.US, "%-26s %s  %s%n", q.label,
-                        q.ok() ? fmtPrice(q.price) : "n/a", fmtPct(q.changePercent)));
+                t.append(q.label).append(": ").append(q.ok() ? fmtPrice(q.price) : na)
+                        .append("  ").append(fmtPct(q.changePercent)).append('\n');
             }
             h.append("</table>");
             t.append('\n');
@@ -204,30 +230,34 @@ final class DailySummaryReport {
 
         // --- Fear & Greed ---
         if (in.enabledItems.contains(ITEM_FEAR_GREED)) {
-            section(h, "Fear &amp; Greed index");
-            t.append("FEAR & GREED (CNN)\n");
+            section(h, s("Fear &amp; Greed index", "מדד הפחד והחמדנות"));
+            t.append(s("FEAR & GREED (CNN)", "מדד הפחד והחמדנות (CNN)")).append('\n');
             if (fg == null) {
-                h.append(muted("Currently unavailable."));
-                t.append("Currently unavailable.\n\n");
+                h.append(muted(unavailable));
+                t.append(unavailable).append("\n\n");
             } else {
                 String color = fgColor(fg.score);
+                String rating = ratingText(fg.rating);
                 h.append("<div style=\"font-size:34px;font-weight:bold;color:").append(color)
                         .append(";\">").append(fg.score).append("<span style=\"font-size:16px;")
-                        .append("margin-left:10px;\">").append(esc(cap(fg.rating)))
+                        .append("margin:0 10px;\">").append(esc(rating))
                         .append("</span></div>")
                         .append("<div style=\"background:#e5e7eb;border-radius:6px;height:10px;")
                         .append("margin:8px 0 10px;\"><div style=\"background:").append(color)
                         .append(";height:10px;border-radius:6px;width:")
                         .append(Math.max(2, Math.min(100, fg.score))).append("%;\"></div></div>")
                         .append("<div style=\"font-size:13px;color:").append(GRAY).append(";\">")
-                        .append("Previous close: <b>").append(fmtInt(fg.previousClose)).append("</b>")
-                        .append(" &nbsp;|&nbsp; Week ago: <b>").append(fmtInt(fg.previousWeek))
-                        .append("</b> &nbsp;|&nbsp; Month ago: <b>")
+                        .append(s("Previous close", "סגירה קודמת")).append(": <b>")
+                        .append(fmtInt(fg.previousClose)).append("</b> &nbsp;|&nbsp; ")
+                        .append(s("Week ago", "לפני שבוע")).append(": <b>")
+                        .append(fmtInt(fg.previousWeek)).append("</b> &nbsp;|&nbsp; ")
+                        .append(s("Month ago", "לפני חודש")).append(": <b>")
                         .append(fmtInt(fg.previousMonth)).append("</b></div>");
-                t.append(fg.score).append(" - ").append(cap(fg.rating))
-                        .append("  (prev close ").append(fmtInt(fg.previousClose))
-                        .append(", week ").append(fmtInt(fg.previousWeek))
-                        .append(", month ").append(fmtInt(fg.previousMonth)).append(")\n\n");
+                t.append(fg.score).append(" - ").append(rating).append("  (")
+                        .append(s("prev close ", "סגירה קודמת ")).append(fmtInt(fg.previousClose))
+                        .append(", ").append(s("week ", "שבוע ")).append(fmtInt(fg.previousWeek))
+                        .append(", ").append(s("month ", "חודש ")).append(fmtInt(fg.previousMonth))
+                        .append(")\n\n");
             }
         }
 
@@ -236,24 +266,25 @@ final class DailySummaryReport {
             List<Quote> ok = new ArrayList<>();
             for (Quote q : sectors) if (q.ok()) ok.add(q);
             Collections.sort(ok, (a, b) -> Double.compare(b.changePercent, a.changePercent));
-            section(h, "S&amp;P 500 sectors");
-            t.append("S&P 500 SECTORS\n");
+            section(h, s("S&amp;P 500 sectors", "סקטורים ב-S&amp;P 500"));
+            t.append(s("S&P 500 SECTORS", "סקטורים ב-S&P 500")).append('\n');
             if (ok.isEmpty()) {
-                h.append(muted("Currently unavailable."));
-                t.append("Currently unavailable.\n\n");
+                h.append(muted(unavailable));
+                t.append(unavailable).append("\n\n");
             } else {
-                h.append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
-                        .append("style=\"border-collapse:collapse;\">");
+                String best = s("Best: ", "מובילים: ");
+                String worst = s("Worst: ", "חלשים: ");
+                tableOpen(h);
                 int count = Math.min(3, ok.size());
                 for (int i = 0; i < count; i++) {
-                    quoteRow(h, "Best: " + ok.get(i).label, ok.get(i));
-                    t.append("Best:  ").append(ok.get(i).label).append(' ')
+                    quoteRow(h, best + ok.get(i).label, ok.get(i));
+                    t.append(best).append(ok.get(i).label).append(' ')
                             .append(fmtPct(ok.get(i).changePercent)).append('\n');
                 }
                 for (int i = 0; i < count; i++) {
                     Quote q = ok.get(ok.size() - 1 - i);
-                    quoteRow(h, "Worst: " + q.label, q);
-                    t.append("Worst: ").append(q.label).append(' ')
+                    quoteRow(h, worst + q.label, q);
+                    t.append(worst).append(q.label).append(' ')
                             .append(fmtPct(q.changePercent)).append('\n');
                 }
                 h.append("</table>");
@@ -264,37 +295,60 @@ final class DailySummaryReport {
         // --- Portfolio ---
         if (in.enabledItems.contains(ITEM_PORTFOLIO)) {
             PortfolioDailyPerformance.Result p = in.portfolio;
-            section(h, "My portfolio");
-            t.append("MY PORTFOLIO\n");
-            String pnlColor = p.profitLoss >= 0 ? GREEN : RED;
-            h.append("<div style=\"font-size:30px;font-weight:bold;color:").append(pnlColor)
-                    .append(";\">").append(fmtSignedMoney(p.profitLoss)).append("</div>")
-                    .append("<div style=\"font-size:13px;color:").append(GRAY)
-                    .append(";margin-top:2px;\">Daily P&amp;L from held positions</div>")
-                    .append("<div style=\"font-size:13px;color:").append(GRAY)
-                    .append(";margin-top:8px;\">Open positions: <b>").append(in.openPositions)
-                    .append("</b> &nbsp;|&nbsp; Valued: <b>").append(p.valuedPositions)
-                    .append("</b>");
-            t.append("Daily P&L: ").append(fmtSignedMoney(p.profitLoss)).append('\n')
-                    .append("Open positions: ").append(in.openPositions)
-                    .append(", valued: ").append(p.valuedPositions).append('\n');
-            if (p.positionsWithoutAmount > 0) {
-                h.append(" &nbsp;|&nbsp; Without amount (excluded): <b>")
-                        .append(p.positionsWithoutAmount).append("</b>");
-                t.append("Excluded (no investment amount): ").append(p.positionsWithoutAmount)
+            section(h, s("My portfolio", "התיק שלי"));
+            t.append(s("MY PORTFOLIO", "התיק שלי")).append('\n');
+            if (p.valuedPositions == 0) {
+                h.append(muted(s("No open positions with an investment amount.",
+                        "אין פוזיציות פתוחות עם סכום השקעה.")));
+                t.append(s("No open positions with an investment amount.",
+                        "אין פוזיציות פתוחות עם סכום השקעה.")).append("\n\n");
+            } else {
+                String dayColor = p.dailyPnl >= 0 ? GREEN : RED;
+                String totalColor = p.totalPnl >= 0 ? GREEN : RED;
+                h.append("<div style=\"font-size:30px;font-weight:bold;color:").append(dayColor)
+                        .append(";\">").append(fmtSignedMoney(p.dailyPnl))
+                        .append(" <span style=\"font-size:16px;\">(")
+                        .append(fmtPct(p.dailyReturnPercent)).append(")</span></div>")
+                        .append("<div style=\"font-size:13px;color:").append(GRAY)
+                        .append(";margin-top:2px;\">")
+                        .append(s("Today's P&amp;L from open positions",
+                                "רווח/הפסד יומי מהפוזיציות הפתוחות")).append("</div>")
+                        .append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+                        .append("style=\"border-collapse:collapse;margin-top:10px;\">");
+                kvRow(h, s("Portfolio value", "שווי התיק"), fmtMoney(p.marketValue), null);
+                kvRow(h, s("Invested", "הושקע"), fmtMoney(p.invested), null);
+                kvRow(h, s("Total P&amp;L", "רווח/הפסד כולל"), fmtSignedMoney(p.totalPnl),
+                        totalColor);
+                kvRow(h, s("Open positions", "פוזיציות פתוחות"),
+                        String.valueOf(in.openPositions), null);
+                h.append("</table>");
+                t.append(s("Today's P&L: ", "רווח/הפסד יומי: ")).append(fmtSignedMoney(p.dailyPnl))
+                        .append(" (").append(fmtPct(p.dailyReturnPercent)).append(")\n")
+                        .append(s("Portfolio value: ", "שווי התיק: ")).append(fmtMoney(p.marketValue))
+                        .append('\n').append(s("Total P&L: ", "רווח/הפסד כולל: "))
+                        .append(fmtSignedMoney(p.totalPnl)).append('\n')
+                        .append(s("Open positions: ", "פוזיציות פתוחות: ")).append(in.openPositions)
                         .append('\n');
+                if (p.positionsWithoutAmount > 0) {
+                    h.append(muted(s("Positions without an investment amount (not counted): ",
+                            "פוזיציות ללא סכום השקעה (לא נספרו): ") + p.positionsWithoutAmount));
+                    t.append(s("Not counted (no investment amount): ",
+                            "לא נספרו (ללא סכום השקעה): ")).append(p.positionsWithoutAmount)
+                            .append('\n');
+                }
+                t.append('\n');
             }
-            h.append("</div>");
-            t.append('\n');
         }
 
         // --- Closed trades ---
         if (in.enabledItems.contains(ITEM_TRADES)) {
-            section(h, "Trades closed");
-            t.append("TRADES CLOSED\n");
+            section(h, s("Trades closed", "עסקאות שנסגרו"));
+            t.append(s("TRADES CLOSED", "עסקאות שנסגרו")).append('\n');
             if (in.trades.isEmpty()) {
-                h.append(muted("No trades were closed in this period."));
-                t.append("No trades were closed in this period.\n\n");
+                String none = s("No trades were closed in this period.",
+                        "לא נסגרו עסקאות בתקופה זו.");
+                h.append(muted(none));
+                t.append(none).append("\n\n");
             } else {
                 double total = 0;
                 int wins = 0;
@@ -307,33 +361,41 @@ final class DailySummaryReport {
                     String c = tr.profitLoss >= 0 ? GREEN : RED;
                     rows.append("<tr><td style=\"padding:7px 0;border-top:1px solid #e5e7eb;")
                             .append("font-weight:bold;\">").append(esc(safe(tr.symbol)))
-                            .append("</td><td style=\"padding:7px 0;border-top:1px solid #e5e7eb;")
-                            .append("color:").append(GRAY).append(";font-size:13px;\">")
+                            .append("</td><td dir=\"ltr\" style=\"padding:7px 8px;")
+                            .append("border-top:1px solid #e5e7eb;color:").append(GRAY)
+                            .append(";font-size:13px;\">")
                             .append(fmtMoney(tr.buyPrice)).append(" &rarr; ")
                             .append(fmtMoney(tr.sellPrice)).append("</td>")
-                            .append("<td align=\"right\" style=\"padding:7px 0;")
+                            .append("<td dir=\"ltr\" align=\"").append(endAlign())
+                            .append("\" style=\"padding:7px 0;")
                             .append("border-top:1px solid #e5e7eb;font-weight:bold;color:")
                             .append(c).append(";\">").append(fmtSignedMoney(tr.profitLoss))
                             .append("</td></tr>");
-                    t.append(String.format(Locale.US, "%-8s %s -> %s  %s%n", safe(tr.symbol),
-                            fmtMoney(tr.buyPrice), fmtMoney(tr.sellPrice),
-                            fmtSignedMoney(tr.profitLoss)));
+                    t.append(safe(tr.symbol)).append("  ").append(fmtMoney(tr.buyPrice))
+                            .append(" -> ").append(fmtMoney(tr.sellPrice)).append("  ")
+                            .append(fmtSignedMoney(tr.profitLoss)).append('\n');
                 }
                 int winRate = Math.round(wins * 100f / in.trades.size());
                 h.append("<div style=\"font-size:13px;color:").append(GRAY).append(";\">")
-                        .append("Closed: <b>").append(in.trades.size()).append("</b> &nbsp;|&nbsp; ")
-                        .append("Wins: <b style=\"color:").append(GREEN).append(";\">").append(wins)
-                        .append("</b> &nbsp;|&nbsp; Losses: <b style=\"color:").append(RED)
-                        .append(";\">").append(losses).append("</b> &nbsp;|&nbsp; Win rate: <b>")
-                        .append(winRate).append("%</b> &nbsp;|&nbsp; Total: <b style=\"color:")
+                        .append(s("Closed", "נסגרו")).append(": <b>").append(in.trades.size())
+                        .append("</b> &nbsp;|&nbsp; ").append(s("Wins", "רווחיות"))
+                        .append(": <b style=\"color:").append(GREEN).append(";\">").append(wins)
+                        .append("</b> &nbsp;|&nbsp; ").append(s("Losses", "הפסדיות"))
+                        .append(": <b style=\"color:").append(RED).append(";\">").append(losses)
+                        .append("</b> &nbsp;|&nbsp; ").append(s("Win rate", "אחוז הצלחה"))
+                        .append(": <b>").append(winRate).append("%</b> &nbsp;|&nbsp; ")
+                        .append(s("Total", "סה\"כ")).append(": <b style=\"color:")
                         .append(total >= 0 ? GREEN : RED).append(";\">")
                         .append(fmtSignedMoney(total)).append("</b></div>")
                         .append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
                         .append("style=\"border-collapse:collapse;margin-top:8px;\">")
                         .append(rows).append("</table>");
-                t.append("Closed: ").append(in.trades.size()).append(", wins ").append(wins)
-                        .append(", losses ").append(losses).append(", win rate ").append(winRate)
-                        .append("%, total ").append(fmtSignedMoney(total)).append("\n\n");
+                t.append(s("Closed: ", "נסגרו: ")).append(in.trades.size())
+                        .append(", ").append(s("wins ", "רווחיות ")).append(wins)
+                        .append(", ").append(s("losses ", "הפסדיות ")).append(losses)
+                        .append(", ").append(s("win rate ", "אחוז הצלחה ")).append(winRate)
+                        .append("%, ").append(s("total ", "סה\"כ ")).append(fmtSignedMoney(total))
+                        .append("\n\n");
             }
         }
 
@@ -342,14 +404,15 @@ final class DailySummaryReport {
             List<Quote> ok = new ArrayList<>();
             for (Quote q : watch) if (q.ok()) ok.add(q);
             Collections.sort(ok, (a, b) -> Double.compare(b.changePercent, a.changePercent));
-            section(h, "Watchlist movers");
-            t.append("WATCHLIST MOVERS\n");
+            section(h, s("Watchlist movers", "תנועות ברשימת המעקב"));
+            t.append(s("WATCHLIST MOVERS", "תנועות ברשימת המעקב")).append('\n');
             if (ok.isEmpty()) {
-                h.append(muted("Your watchlist is empty or unavailable."));
-                t.append("Your watchlist is empty or unavailable.\n\n");
+                String empty = s("Your watchlist is empty or unavailable.",
+                        "רשימת המעקב ריקה או לא זמינה.");
+                h.append(muted(empty));
+                t.append(empty).append("\n\n");
             } else {
-                h.append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
-                        .append("style=\"border-collapse:collapse;\">");
+                tableOpen(h);
                 int count = Math.min(3, ok.size());
                 for (int i = 0; i < count; i++) {
                     Quote q = ok.get(i);
@@ -368,11 +431,14 @@ final class DailySummaryReport {
             }
         }
 
+        String footer = s("Generated automatically by MogoMarket. Market data may be delayed. "
+                        + "Not investment advice.",
+                "נוצר אוטומטית על ידי MogoMarket. נתוני השוק עשויים להתעכב. "
+                        + "אין זה ייעוץ השקעות.");
         h.append("<div style=\"margin-top:22px;font-size:11px;color:#9ca3af;")
-                .append("text-align:center;\">Generated automatically by MogoMarket. ")
-                .append("Market data may be delayed. Not investment advice.</div>")
+                .append("text-align:center;\">").append(footer).append("</div>")
                 .append("</div></div></body></html>");
-        t.append("Generated automatically by MogoMarket. Market data may be delayed.\n");
+        t.append(footer).append('\n');
 
         Rendered out = new Rendered();
         out.html = h.toString();
@@ -380,11 +446,17 @@ final class DailySummaryReport {
         return out;
     }
 
-    private static void addIf(Input in, List<Quote> list, String id, String label, String symbol) {
-        if (in.enabledItems.contains(id)) list.add(new Quote(label, symbol));
+    private static void addIf(Input in, List<Quote> list, String id, String labelEn,
+                              String labelHe, String symbol) {
+        if (in.enabledItems.contains(id)) list.add(new Quote(he ? labelHe : labelEn, symbol));
     }
 
     // ---- HTML helpers ----
+
+    private static void tableOpen(StringBuilder h) {
+        h.append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+                .append("style=\"border-collapse:collapse;\">");
+    }
 
     private static void section(StringBuilder h, String title) {
         h.append("<div style=\"font-size:12px;font-weight:bold;letter-spacing:1px;")
@@ -394,19 +466,45 @@ final class DailySummaryReport {
     }
 
     private static String muted(String text) {
-        return "<div style=\"font-size:13px;color:" + GRAY + ";\">" + text + "</div>";
+        return "<div style=\"font-size:13px;color:" + GRAY + ";margin-top:6px;\">" + text
+                + "</div>";
+    }
+
+    private static void kvRow(StringBuilder h, String label, String value, @Nullable String color) {
+        h.append("<tr><td style=\"padding:6px 0;border-top:1px solid #e5e7eb;font-size:14px;")
+                .append("color:").append(GRAY).append(";\">").append(label).append("</td>")
+                .append("<td dir=\"ltr\" align=\"").append(endAlign())
+                .append("\" style=\"padding:6px 0;border-top:1px solid #e5e7eb;")
+                .append("font-size:14px;font-weight:bold;");
+        if (color != null) h.append("color:").append(color).append(";");
+        h.append("\">").append(value).append("</td></tr>");
     }
 
     private static void quoteRow(StringBuilder h, String label, Quote q) {
         String color = !q.ok() ? GRAY : (q.changePercent >= 0 ? GREEN : RED);
         h.append("<tr><td style=\"padding:8px 0;border-top:1px solid #e5e7eb;font-size:14px;\">")
                 .append(esc(label)).append("</td>")
-                .append("<td align=\"right\" style=\"padding:8px 0;border-top:1px solid #e5e7eb;")
-                .append("font-size:14px;\">").append(q.ok() ? fmtPrice(q.price) : "n/a")
-                .append("</td><td align=\"right\" style=\"padding:8px 0 8px 14px;")
+                .append("<td dir=\"ltr\" align=\"").append(endAlign())
+                .append("\" style=\"padding:8px 0;border-top:1px solid #e5e7eb;")
+                .append("font-size:14px;\">").append(q.ok() ? fmtPrice(q.price) : "-")
+                .append("</td><td dir=\"ltr\" align=\"").append(endAlign())
+                .append("\" style=\"padding:8px 0 8px 14px;")
                 .append("border-top:1px solid #e5e7eb;font-size:14px;font-weight:bold;color:")
                 .append(color).append(";width:80px;\">").append(fmtPct(q.changePercent))
                 .append("</td></tr>");
+    }
+
+    private static String ratingText(String rating) {
+        String r = rating == null ? "" : rating.trim().toLowerCase(Locale.US);
+        if (!he) return cap(r);
+        switch (r) {
+            case "extreme fear": return "פחד קיצוני";
+            case "fear": return "פחד";
+            case "neutral": return "ניטרלי";
+            case "greed": return "חמדנות";
+            case "extreme greed": return "חמדנות קיצונית";
+            default: return r;
+        }
     }
 
     private static String fgColor(int score) {
@@ -417,14 +515,14 @@ final class DailySummaryReport {
         return "#16a34a";
     }
 
-    private static String cap(String s) {
-        if (s == null || s.isEmpty()) return "";
-        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    private static String cap(String str) {
+        if (str == null || str.isEmpty()) return "";
+        return Character.toUpperCase(str.charAt(0)) + str.substring(1);
     }
 
-    private static String esc(@Nullable String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    private static String esc(@Nullable String str) {
+        if (str == null) return "";
+        return str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private static String safe(@Nullable String v) {
@@ -440,7 +538,7 @@ final class DailySummaryReport {
     }
 
     private static String fmtPct(double v) {
-        return Double.isNaN(v) ? "n/a" : String.format(Locale.US, "%+.2f%%", v);
+        return Double.isNaN(v) ? "-" : String.format(Locale.US, "%+.2f%%", v);
     }
 
     private static String fmtMoney(double v) {

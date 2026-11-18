@@ -312,6 +312,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
         if (symbol == null) return "";
         if (isCrypto(symbol)) return symbol.substring(symbol.indexOf(':') + 1);
         if ("^VIX".equals(symbol)) return "VIX";
+        if ("CL=F".equals(symbol)) return "OIL";
+        if ("BZ=F".equals(symbol)) return "BRENT";
         return symbol.replace("=X", "").replace("=F", "");
     }
 

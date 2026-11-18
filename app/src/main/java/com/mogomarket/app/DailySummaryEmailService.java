@@ -51,6 +51,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
     public static final String KEY_MINUTE = "daily_email_minute";
     public static final String KEY_RECIPIENT = "daily_email_recipient";
     public static final String KEY_ITEM_PREFIX = "daily_email_item_";
+    public static final String KEY_LANGUAGE = "daily_email_language"; // "en" or "he"
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -115,7 +116,10 @@ public class DailySummaryEmailService extends BroadcastReceiver {
             for (String id : DailySummaryReport.ITEM_IDS) {
                 if (isItemEnabled(prefs, id)) input.enabledItems.add(id);
             }
-            input.dateTitle = new SimpleDateFormat("EEEE, d MMMM yyyy", Locale.US)
+            boolean hebrew = "he".equals(prefs.getString(KEY_LANGUAGE, "en"));
+            input.hebrew = hebrew;
+            Locale mailLocale = hebrew ? new Locale("he", "IL") : Locale.US;
+            input.dateTitle = new SimpleDateFormat("EEEE, d MMMM yyyy", mailLocale)
                     .format(new Date());
 
             com.google.firebase.database.DatabaseReference userRef =
@@ -157,8 +161,8 @@ public class DailySummaryEmailService extends BroadcastReceiver {
             }
 
             DailySummaryReport.Rendered rendered = DailySummaryReport.build(input);
-            String subject = "MogoMarket Daily Summary - "
-                    + new SimpleDateFormat("EEE d MMM", Locale.US).format(new Date());
+            String subject = (hebrew ? "MogoMarket סיכום יומי - " : "MogoMarket Daily Summary - ")
+                    + new SimpleDateFormat("EEE d MMM", mailLocale).format(new Date());
             return sendEmail(context, toEmail, subject, rendered.text, rendered.html,
                     showSuccessNotification);
         } catch (Exception e) {
@@ -228,7 +232,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(senderEmail, "MogoMarket"));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
-            message.setSubject(subject);
+            message.setSubject(subject, "UTF-8");
             message.setContent(multipart);
             Transport.send(message);
 

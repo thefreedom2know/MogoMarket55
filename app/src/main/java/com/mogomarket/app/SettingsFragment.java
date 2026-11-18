@@ -177,6 +177,25 @@ public class SettingsFragment extends Fragment {
         if (btnSummaryContent != null) {
             btnSummaryContent.setOnClickListener(view -> showSummaryContentDialog());
         }
+        MaterialButton btnSummaryLanguage = v.findViewById(R.id.btnDailySummaryLanguage);
+        if (btnSummaryLanguage != null) {
+            updateSummaryLanguageButton(btnSummaryLanguage);
+            btnSummaryLanguage.setOnClickListener(view -> {
+                boolean hebrew = "he".equals(
+                        prefs.getString(DailySummaryEmailService.KEY_LANGUAGE, "en"));
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Email language / שפת המייל")
+                        .setSingleChoiceItems(new String[]{"English", "עברית"}, hebrew ? 1 : 0,
+                                (dialog, which) -> {
+                                    prefs.edit().putString(DailySummaryEmailService.KEY_LANGUAGE,
+                                            which == 1 ? "he" : "en").apply();
+                                    updateSummaryLanguageButton(btnSummaryLanguage);
+                                    dialog.dismiss();
+                                })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        }
         MaterialButton btnSummaryRecipient = v.findViewById(R.id.btnDailySummaryRecipient);
         if (btnSummaryRecipient != null) {
             updateSummaryRecipientButton(btnSummaryRecipient);
@@ -273,6 +292,11 @@ public class SettingsFragment extends Fragment {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void updateSummaryLanguageButton(MaterialButton button) {
+        boolean hebrew = "he".equals(prefs.getString(DailySummaryEmailService.KEY_LANGUAGE, "en"));
+        button.setText(hebrew ? "Email language: עברית" : "Email language: English");
     }
 
     private void updateSummaryRecipientButton(MaterialButton button) {
