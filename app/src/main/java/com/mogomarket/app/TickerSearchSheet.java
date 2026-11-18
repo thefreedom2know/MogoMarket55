@@ -118,6 +118,9 @@ public class TickerSearchSheet extends BottomSheetDialogFragment {
         FOREX_LIST.add(new ChartFragment.StockSuggestion("XBRUSD", "Brent Crude Oil", "Commodity"));
         FOREX_LIST.add(new ChartFragment.StockSuggestion("OIL", "Crude Oil Futures", "Commodity"));
         FOREX_LIST.add(new ChartFragment.StockSuggestion("CRUDE", "Crude Oil", "Commodity"));
+        FOREX_LIST.add(new ChartFragment.StockSuggestion("WTI", "WTI Crude Oil", "Commodity"));
+        FOREX_LIST.add(new ChartFragment.StockSuggestion("BRENT", "Brent Crude Oil", "Commodity"));
+        FOREX_LIST.add(new ChartFragment.StockSuggestion("VIX", "CBOE Volatility Index", "Index"));
     }
 
     public void setCurrentSymbol(String symbol) {
