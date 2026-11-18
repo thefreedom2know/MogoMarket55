@@ -5,6 +5,8 @@ public class StockWatchData {
     public float   alertTargetPrice;
     public boolean alertEnabled;
     public boolean alertTriggered;
+    /** "ABOVE" (default, also when empty) or "BELOW". */
+    public String  alertDirection;
 
     // שדות זמניים - לא נשמרים ב-Firebase, מחושבים בזמן ריצה
     // הוסרה מילת transient כדי ש-ClassMapper לא יזרוק אזהרות

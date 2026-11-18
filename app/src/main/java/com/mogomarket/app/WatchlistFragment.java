@@ -842,10 +842,28 @@ public class WatchlistFragment extends Fragment {
         input.setHint("Target price");
         input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER |
                 android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        final android.widget.RadioButton rbAbove = new android.widget.RadioButton(requireContext());
+        rbAbove.setText("Alert me when the price rises to or above");
+        final android.widget.RadioButton rbBelow = new android.widget.RadioButton(requireContext());
+        rbBelow.setText("Alert me when the price falls to or below");
+        final android.widget.RadioGroup directionGroup =
+                new android.widget.RadioGroup(requireContext());
+        rbAbove.setId(View.generateViewId());
+        rbBelow.setId(View.generateViewId());
+        directionGroup.addView(rbAbove);
+        directionGroup.addView(rbBelow);
+        if ("BELOW".equals(stock.alertDirection)) rbBelow.setChecked(true);
+        else rbAbove.setChecked(true);
+        final android.widget.LinearLayout alertBox = new android.widget.LinearLayout(requireContext());
+        alertBox.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = Math.round(20 * getResources().getDisplayMetrics().density);
+        alertBox.setPadding(pad, pad / 2, pad, 0);
+        alertBox.addView(input);
+        alertBox.addView(directionGroup);
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Set price alert")
-                .setView(input)
+                .setView(alertBox)
                 .setPositiveButton("Save", (dialog, which) -> {
                     String txt = input.getText().toString().trim();
                     if (txt.isEmpty()) return;
@@ -861,6 +879,7 @@ public class WatchlistFragment extends Fragment {
                         String key = stock.symbol.replace(":", "_");
                         Map<String, Object> alertUpdate = new HashMap<>();
                         alertUpdate.put("alertTargetPrice", target);
+                        alertUpdate.put("alertDirection", rbBelow.isChecked() ? "BELOW" : "ABOVE");
                         alertUpdate.put("alertEnabled", true);
                         alertUpdate.put("alertTriggered", false);
                         watchlistRef.child(key).updateChildren(alertUpdate)

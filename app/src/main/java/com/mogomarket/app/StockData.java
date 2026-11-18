@@ -26,6 +26,8 @@ public class StockData {
     public String strategyTag;
     public String sector;
     public String exitReason;
+    /** Journal: emotional state when the trade was taken (FOMO, Disciplined...). */
+    public String moodTag;
     public java.util.List<String> screenshotPaths;
     public java.util.List<String> screenshotUrls;
     public Double missedProfitLoss;

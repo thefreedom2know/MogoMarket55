@@ -197,6 +197,11 @@ public class ClosedTradesFragment extends Fragment {
         }
 
         btnAnalyze.setOnClickListener(view -> showAiTradeAnalysis());
+        View btnJournal = v.findViewById(R.id.btnJournal);
+        if (btnJournal != null) {
+            btnJournal.setOnClickListener(view ->
+                    JournalInsightsDialog.show(requireContext(), new ArrayList<>(closedTrades)));
+        }
         v.findViewById(R.id.btnExportTrades).setOnClickListener(view -> {
             new AlertDialog.Builder(requireContext())
                     .setTitle("Export closed trades")
@@ -567,6 +572,19 @@ public class ClosedTradesFragment extends Fragment {
         strategy.setSelection(Math.max(0, strategyPosition));
         layout.addView(strategy);
 
+        final Spinner mood = new Spinner(getContext());
+        ArrayAdapter<String> moodAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, JournalInsightsDialog.MOODS);
+        moodAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mood.setAdapter(moodAdapter);
+        int moodPosition = java.util.Arrays.asList(JournalInsightsDialog.MOODS)
+                .indexOf(trade.moodTag == null ? "" : trade.moodTag);
+        mood.setSelection(Math.max(0, moodPosition));
+        android.widget.TextView moodLabel = new android.widget.TextView(requireContext());
+        moodLabel.setText("Journal - how did you feel in this trade?");
+        layout.addView(moodLabel);
+        layout.addView(mood);
+
         final Spinner sector = new Spinner(getContext());
         String[] sectors = {"Other", "Technology", "Healthcare", "Financials",
                 "Consumer Discretionary", "Consumer Staples", "Industrials", "Energy",
@@ -612,7 +630,9 @@ public class ClosedTradesFragment extends Fragment {
                                 [exitReason.getSelectedItemPosition()],
                         "None".equals(strategy.getSelectedItem().toString())
                                 ? "" : strategy.getSelectedItem().toString(),
-                        entryFees, exitFees, taxes, sector.getSelectedItem().toString());
+                        entryFees, exitFees, taxes, sector.getSelectedItem().toString(),
+                        "None".equals(mood.getSelectedItem().toString())
+                                ? "" : mood.getSelectedItem().toString());
             } catch (NumberFormatException e) {
                 Toast.makeText(getContext(), "נא להזין מספרים תקינים בלבד", Toast.LENGTH_SHORT).show();
             }
@@ -633,7 +653,7 @@ public class ClosedTradesFragment extends Fragment {
     private void updateTradeInFirebase(StockData trade, double buyPrice,
                                        double sellPrice, double tradeAmount, String exitReason,
                                        String strategyTag, double entryFees, double exitFees,
-                                       double taxes, String sector) {
+                                       double taxes, String sector, String moodTag) {
         if (userRef == null || trade.symbol == null) return;
         String key = trade.closedTradeId != null
                 ? trade.closedTradeId : trade.symbol.replace(":", "_");
@@ -663,6 +683,7 @@ public class ClosedTradesFragment extends Fragment {
                 previous.tradeAmount = tradeAmount;
                 previous.exitReason = exitReason;
                 previous.strategyTag = strategyTag;
+                previous.moodTag = moodTag;
                 previous.sector = sector;
                 previous.entryFees = entryFees;
                 previous.exitFees = exitFees;

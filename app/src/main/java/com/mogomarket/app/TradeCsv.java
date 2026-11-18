@@ -7,7 +7,7 @@ public class TradeCsv {
 
     public static String exportTrades(List<StockData> trades) {
         StringBuilder sb = new StringBuilder();
-        sb.append("\"id\",\"symbol\",\"buy_price\",\"sell_price\",\"amount\",\"entry_fees\",\"exit_fees\",\"taxes\",\"exit_reason\",\"strategy\",\"notes\",\"opened_at\",\"closed_at\",\"missed_pnl\",\"sector\"\n");
+        sb.append("\"id\",\"symbol\",\"buy_price\",\"sell_price\",\"amount\",\"entry_fees\",\"exit_fees\",\"taxes\",\"exit_reason\",\"strategy\",\"notes\",\"opened_at\",\"closed_at\",\"missed_pnl\",\"sector\",\"mood\"\n");
         if (trades != null) {
             for (StockData t : trades) {
                 sb.append("\"").append(escape(t.closedTradeId)).append("\",");
@@ -24,7 +24,8 @@ public class TradeCsv {
                 sb.append("\"").append(t.openedAt).append("\",");
                 sb.append("\"").append(t.closedAt).append("\",");
                 sb.append("\"").append(t.missedProfitLoss).append("\",");
-                sb.append("\"").append(escape(t.sector)).append("\"\n");
+                sb.append("\"").append(escape(t.sector)).append("\",");
+                sb.append("\"").append(escape(t.moodTag)).append("\"\n");
             }
         }
         return sb.toString();
@@ -58,6 +59,7 @@ public class TradeCsv {
             } else {
                 trade.sector = "Other";
             }
+            if (cols.size() > 15) trade.moodTag = cols.get(15);
             list.add(trade);
         }
         return list;

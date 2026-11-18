@@ -368,7 +368,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
         if (stock.alertEnabled && stock.alertTargetPrice > 0) {
             holder.alertText.setText(String.format(
                     Locale.US,
-                    isForex(stock.symbol) ? "Alert: $%.4f" : "Alert: $%.2f",
+                    isForex(stock.symbol) ? "Alert %s $%.4f" : "Alert %s $%.2f",
+                    "BELOW".equals(stock.alertDirection) ? "\u2193" : "\u2191",
                     stock.alertTargetPrice
             ));
             holder.alertText.setTextColor(colorPrimary);
@@ -861,7 +862,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
         if (!ctx.getSharedPreferences(PriceAlertScheduler.PREFS_NAME, Context.MODE_PRIVATE)
                 .getBoolean(PriceAlertScheduler.KEY_ENABLED, false)) return;
         if (!stock.alertEnabled || stock.alertTargetPrice <= 0 || stock.alertTriggered) return;
-        if (price < stock.alertTargetPrice) return;
+        if (!PriceAlertReceiver.reached(stock.alertDirection, stock.alertTargetPrice, price)) return;
 
         String symbol = stock.symbol;
         String safeKey = symbol.replace(":", "_");
@@ -876,7 +877,9 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
             public Transaction.Result doTransaction(@NonNull MutableData currentData) {
                 StockWatchData latest = currentData.getValue(StockWatchData.class);
                 if (latest == null || !latest.alertEnabled || latest.alertTriggered
-                        || latest.alertTargetPrice <= 0 || price < latest.alertTargetPrice) {
+                        || latest.alertTargetPrice <= 0
+                        || !PriceAlertReceiver.reached(latest.alertDirection,
+                                latest.alertTargetPrice, price)) {
                     return Transaction.abort();
                 }
                 latest.alertTriggered = true;
@@ -902,12 +905,14 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                 StockWatchData triggered = currentData != null
                         ? currentData.getValue(StockWatchData.class) : null;
                 float target = triggered != null ? triggered.alertTargetPrice : stock.alertTargetPrice;
-                postPriceAlertNotification(ctx, symbol, target, price);
+                postPriceAlertNotification(ctx, symbol, target, price,
+                        triggered != null ? triggered.alertDirection : stock.alertDirection);
             }
         });
     }
 
-    private void postPriceAlertNotification(Context ctx, String symbol, float target, float price) {
+    private void postPriceAlertNotification(Context ctx, String symbol, float target, float price,
+                                            @Nullable String direction) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             android.app.NotificationChannel ch = new android.app.NotificationChannel(
                     PriceAlertReceiver.CHANNEL_ID,
@@ -927,8 +932,10 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                 .setContentText(String.format(
                         Locale.US,
                         isForex(symbol)
-                                ? "%s reached $%.4f, current: $%.4f"
-                                : "%s reached $%.2f, current: $%.2f",
+                                ? ("BELOW".equals(direction) ? "%s fell to $%.4f, current: $%.4f"
+                                        : "%s reached $%.4f, current: $%.4f")
+                                : ("BELOW".equals(direction) ? "%s fell to $%.2f, current: $%.2f"
+                                        : "%s reached $%.2f, current: $%.2f"),
                         displaySym,
                         target,
                         price

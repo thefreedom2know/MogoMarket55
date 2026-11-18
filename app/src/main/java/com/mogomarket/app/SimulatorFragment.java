@@ -146,6 +146,34 @@ public class SimulatorFragment extends Fragment {
 
     private enum Mode { SEQUENTIAL, PARALLEL }
 
+    private String pendingCsv;
+    private final androidx.activity.result.ActivityResultLauncher<String> csvLauncher =
+            registerForActivityResult(
+                    new androidx.activity.result.contract.ActivityResultContracts.CreateDocument(
+                            "text/csv"),
+                    uri -> {
+                        if (uri == null || pendingCsv == null || getContext() == null) return;
+                        String csv = pendingCsv;
+                        pendingCsv = null;
+                        String error = DataExport.write(requireContext(), uri, csv);
+                        toast(error == null ? "File saved" : error);
+                    });
+
+    /** kind: 2 = simulator trades, 3 = simulator equity history (see DataExport). */
+    private void exportCsv(int kind) {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+        DataExport.build(kind, user.getUid(), (csv, error) -> {
+            if (!isAdded()) return;
+            if (csv == null) {
+                toast(error);
+                return;
+            }
+            pendingCsv = csv;
+            csvLauncher.launch(DataExport.FILE_NAMES[kind]);
+        });
+    }
+
     // ====================================================================================
     // Lifecycle
     // ====================================================================================
@@ -184,6 +212,7 @@ public class SimulatorFragment extends Fragment {
         closedTradesRef = base.child("closed-trades");
 
         buildUi();
+        PaperBackgroundWorker.schedule(ctx.getApplicationContext());
         PaperEngine.ensureAccount(acct);
         listen();
         return v;
@@ -1274,7 +1303,11 @@ public class SimulatorFragment extends Fragment {
             return;
         }
         SimpleDateFormat fmt = new SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault());
-        LinearLayout box = card(body, 0);
+        MaterialButton export = button("⬇ Export trades (CSV / Excel)", cChip, cText,
+                x -> exportCsv(2));
+        body.addView(export, lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 0));
+        LinearLayout box = card(body, 10);
         int shown = 0;
         for (int i = trades.size() - 1; i >= 0 && shown < 100; i--, shown++) {
             Trd t = trades.get(i);
@@ -1403,6 +1436,10 @@ public class SimulatorFragment extends Fragment {
         statRow("Worst trade", closed == 0 ? "--" : signedMoney(worst) + " " + worstSym, cLoss);
         statRow("Max drawdown", equityPts.size() < 2 ? "--"
                 : String.format(Locale.US, "%.2f%%", maxDd), cText);
+        MaterialButton exportEq = button("⬇ Export equity history (CSV)", cChip, cText,
+                x -> exportCsv(3));
+        statsBox.addView(exportEq, lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 12));
     }
 
     private void statRow(String label, String value, int valueColor) {

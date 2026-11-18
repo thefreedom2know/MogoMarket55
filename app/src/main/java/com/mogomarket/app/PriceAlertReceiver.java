@@ -49,6 +49,11 @@ public class PriceAlertReceiver extends BroadcastReceiver {
     private static final String TAG = "PriceAlertReceiver";
     private static final OkHttpClient CLIENT = new OkHttpClient();
 
+    /** True when the price has reached the alert level in the chosen direction. */
+    static boolean reached(@Nullable String direction, float target, float price) {
+        return "BELOW".equals(direction) ? price <= target : price >= target;
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
         createNotificationChannel(context);
@@ -166,15 +171,9 @@ public class PriceAlertReceiver extends BroadcastReceiver {
 
         try {
             String encoded = URLEncoder.encode(symbol, StandardCharsets.UTF_8.name());
-            String url = ApiConfig.FINNHUB_QUOTE + encoded
-                    + "&token=" + ApiConfig.finnhubKey();
-            fetchPrice(url, "c", (price, error) -> {
-                if (error != null) Log.w(TAG, "Failed to fetch stock price for " + symbol, error);
-                if (error == null) {
-                    checkThreshold(context, stock, firebaseKey, watchlistRef, price,
-                            operationFinished);
-                } else operationFinished.run();
-            });
+            fetchYahooPrice(context, stock, firebaseKey, watchlistRef,
+                    ApiConfig.YAHOO_CHART + encoded + "?range=2d&interval=1d",
+                    operationFinished);
         } catch (Exception e) {
             Log.e(TAG, "Failed to prepare quote request for " + symbol, e);
             operationFinished.run();
@@ -270,7 +269,7 @@ public class PriceAlertReceiver extends BroadcastReceiver {
     private void checkThreshold(Context context, StockWatchData stock, String firebaseKey,
                                 DatabaseReference watchlistRef, float price,
                                 Runnable operationFinished) {
-        if (price < stock.alertTargetPrice) {
+        if (!reached(stock.alertDirection, stock.alertTargetPrice, price)) {
             operationFinished.run();
             return;
         }
@@ -281,7 +280,8 @@ public class PriceAlertReceiver extends BroadcastReceiver {
             public Transaction.Result doTransaction(@NonNull MutableData currentData) {
                 StockWatchData latest = currentData.getValue(StockWatchData.class);
                 if (latest == null || !latest.alertEnabled || latest.alertTriggered
-                        || latest.alertTargetPrice <= 0f || price < latest.alertTargetPrice) {
+                        || latest.alertTargetPrice <= 0f
+                        || !reached(latest.alertDirection, latest.alertTargetPrice, price)) {
                     return Transaction.abort();
                 }
                 currentData.child("alertEnabled").setValue(false);
@@ -299,14 +299,16 @@ public class PriceAlertReceiver extends BroadcastReceiver {
                             ? currentData.getValue(StockWatchData.class) : null;
                     float target = triggered != null
                             ? triggered.alertTargetPrice : stock.alertTargetPrice;
-                    sendNotification(context, stock.symbol, target, price);
+                    sendNotification(context, stock.symbol, target, price,
+                            triggered != null ? triggered.alertDirection : stock.alertDirection);
                 }
                 operationFinished.run();
             }
         });
     }
 
-    private void sendNotification(Context context, String symbol, float target, float current) {
+    private void sendNotification(Context context, String symbol, float target, float current,
+                                  @Nullable String direction) {
         Intent openIntent = new Intent(context, SplashActivity.class);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -320,7 +322,9 @@ public class PriceAlertReceiver extends BroadcastReceiver {
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle("Price alert: " + displaySymbol)
                 .setContentText(String.format(Locale.US,
-                        "%s reached $%.2f (target $%.2f)", displaySymbol, current, target))
+                        "BELOW".equals(direction) ? "%s fell to $%.2f (alert level $%.2f)"
+                                : "%s reached $%.2f (target $%.2f)",
+                        displaySymbol, current, target))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);

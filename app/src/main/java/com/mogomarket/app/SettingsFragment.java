@@ -32,6 +32,20 @@ import java.util.Locale;
 
 public class SettingsFragment extends Fragment {
 
+    private String pendingExportCsv;
+    private final androidx.activity.result.ActivityResultLauncher<String> exportLauncher =
+            registerForActivityResult(
+                    new androidx.activity.result.contract.ActivityResultContracts.CreateDocument(
+                            "text/csv"),
+                    uri -> {
+                        if (uri == null || pendingExportCsv == null || getContext() == null) return;
+                        String csv = pendingExportCsv;
+                        pendingExportCsv = null;
+                        String error = DataExport.write(requireContext(), uri, csv);
+                        Toast.makeText(getContext(), error == null ? "File saved" : error,
+                                Toast.LENGTH_LONG).show();
+                    });
+
     private MaterialButton btnThemeToggle;
     private TextView tvThemeStatus;
     private static final String PREFS_NAME       = PriceAlertScheduler.PREFS_NAME;
@@ -260,6 +274,12 @@ public class SettingsFragment extends Fragment {
             });
         }
 
+        // Export my data (CSV / Excel)
+        MaterialButton btnExportData = v.findViewById(R.id.btnExportData);
+        if (btnExportData != null) {
+            btnExportData.setOnClickListener(view -> showExportDialog());
+        }
+
         // Delete Account
         MaterialButton btnDeleteAccount = v.findViewById(R.id.btnDeleteAccount);
         if (btnDeleteAccount != null) {
@@ -442,6 +462,28 @@ public class SettingsFragment extends Fragment {
     }
 
     // ─── Delete Account ───────────────────────────────────────────────────────
+
+    private void showExportDialog() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Export my data (opens in Excel)")
+                .setItems(DataExport.LABELS, (dialog, which) ->
+                        DataExport.build(which, user.getUid(), (csv, error) -> {
+                            if (!isAdded()) return;
+                            if (csv == null) {
+                                Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            pendingExportCsv = csv;
+                            exportLauncher.launch(DataExport.FILE_NAMES[which]);
+                        }))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 
     private void showDeleteAccountDialog() {
         new AlertDialog.Builder(requireContext())
