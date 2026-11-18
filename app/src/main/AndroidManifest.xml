@@ -53,6 +53,18 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".PortfolioWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.mogomarket.app.WIDGET_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/portfolio_widget_info" />
+        </receiver>
+
         <!-- SplashActivity — LAUNCHER -->
         <activity
             android:name=".SplashActivity"

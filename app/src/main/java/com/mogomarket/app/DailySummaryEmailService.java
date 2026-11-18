@@ -199,8 +199,8 @@ public class DailySummaryEmailService extends BroadcastReceiver {
         String senderEmail = ApiConfig.smtpEmail();
         String senderPassword = ApiConfig.smtpPassword();
         if (senderEmail.trim().isEmpty() || senderPassword.trim().isEmpty()) {
-            return fail(context, "This app build has no sender email configured "
-                    + "(SMTP_EMAIL / SMTP_PASSWORD missing in local.properties when it was built).");
+            return sendViaServer(context, toEmail, subject, plainText, html,
+                    showSuccessNotification);
         }
 
         try {
@@ -249,6 +249,43 @@ public class DailySummaryEmailService extends BroadcastReceiver {
                         + "App Password (2-step verification on), not the normal password.");
             }
             return fail(context, "Sending failed: " + describe(e));
+        }
+    }
+
+    /**
+     * No SMTP login inside the app: the "sendSummaryEmail" Firebase Function sends the mail
+     * with credentials stored on the server (see functions/README.md).
+     */
+    private static boolean sendViaServer(Context context, String toEmail, String subject,
+                                         String plainText, String html,
+                                         boolean showSuccessNotification) {
+        try {
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("to", toEmail);
+            data.put("subject", subject);
+            data.put("text", plainText);
+            data.put("html", html);
+            Tasks.await(com.google.firebase.functions.FirebaseFunctions.getInstance()
+                    .getHttpsCallable("sendSummaryEmail").call(data), 60, TimeUnit.SECONDS);
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                    .remove(KEY_LAST_ERROR).apply();
+            if (showSuccessNotification) {
+                showNotification(context, "Daily summary sent", "The email was sent to " + toEmail);
+            }
+            return true;
+        } catch (Exception e) {
+            String reason = e.getMessage();
+            Throwable cause = e.getCause();
+            if (cause instanceof com.google.firebase.functions.FirebaseFunctionsException) {
+                com.google.firebase.functions.FirebaseFunctionsException fe =
+                        (com.google.firebase.functions.FirebaseFunctionsException) cause;
+                reason = fe.getCode() == com.google.firebase.functions.FirebaseFunctionsException
+                        .Code.NOT_FOUND
+                        ? "The email server function is not deployed yet (see functions/README.md), "
+                        + "or add SMTP_EMAIL / SMTP_PASSWORD to local.properties."
+                        : fe.getMessage();
+            }
+            return fail(context, "Server email failed: " + reason);
         }
     }
 

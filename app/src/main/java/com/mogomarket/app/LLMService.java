@@ -76,8 +76,55 @@ public class LLMService {
         return API_KEY != null && !API_KEY.trim().isEmpty();
     }
 
+    /** True when the AI can be used: a local key, or the server function (logged-in users). */
     public static boolean isConfigured() {
-        return ApiConfig.hasGroqKey() || hasGemini();
+        return ApiConfig.hasGroqKey() || hasGemini()
+                || com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser() != null;
+    }
+
+    /**
+     * No key inside the app: ask the "aiChat" Firebase Function, which holds the keys on the
+     * server (see functions/README.md). Nothing secret ships in the APK this way.
+     */
+    private void sendToServer(String systemPrompt, List<Turn> turns, AnalysisCallback callback) {
+        if (com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser() == null) {
+            notifyError(callback, "Log in to use the AI assistant.");
+            return;
+        }
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        if (systemPrompt != null) data.put("system", systemPrompt);
+        List<java.util.Map<String, Object>> list = new ArrayList<>();
+        for (Turn t : turns) {
+            java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("role", t.role);
+            m.put("text", t.text);
+            list.add(m);
+        }
+        data.put("turns", list);
+        com.google.firebase.functions.FirebaseFunctions.getInstance()
+                .getHttpsCallable("aiChat")
+                .call(data)
+                .addOnSuccessListener(result -> {
+                    Object payload = result.getData();
+                    String text = payload instanceof java.util.Map
+                            ? String.valueOf(((java.util.Map<?, ?>) payload).get("text")) : "";
+                    if (text.isEmpty() || "null".equals(text)) {
+                        callback.onError("No answer from the AI server");
+                    } else {
+                        callback.onAnalysisReceived(text);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    String message = e.getMessage() == null ? "" : e.getMessage();
+                    if (e instanceof com.google.firebase.functions.FirebaseFunctionsException
+                            && ((com.google.firebase.functions.FirebaseFunctionsException) e)
+                            .getCode() == com.google.firebase.functions.FirebaseFunctionsException
+                            .Code.NOT_FOUND) {
+                        message = "The AI server function is not deployed yet "
+                                + "(see functions/README.md), or add GROQ_API_KEY locally.";
+                    }
+                    callback.onError("AI server error: " + message);
+                });
     }
 
     // ------------------------------------------------------------------------------------
@@ -159,6 +206,10 @@ public class LLMService {
     // ------------------------------------------------------------------------------------
 
     private void sendChat(String systemPrompt, List<Turn> turns, AnalysisCallback callback) {
+        if (!ApiConfig.hasGroqKey() && !hasGemini()) {
+            sendToServer(systemPrompt, turns, callback);
+            return;
+        }
         if (ApiConfig.hasGroqKey()) {
             sendToGroq(systemPrompt, turns, new AnalysisCallback() {
                 @Override
