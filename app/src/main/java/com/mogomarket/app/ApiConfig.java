@@ -29,6 +29,10 @@ public final class ApiConfig {
     // ---- Google Gemini (needs GEMINI_API_KEY): AI chat ----
     public static final String GEMINI_MODELS = "https://generativelanguage.googleapis.com/v1beta/models/";
 
+    // ---- Groq (free tier, needs GROQ_API_KEY): AI chat, OpenAI-compatible ----
+    public static final String GROQ_CHAT = "https://api.groq.com/openai/v1/chat/completions";
+    public static final String GROQ_MODEL = "llama-3.3-70b-versatile";
+
     // ---- EmailJS: sending emails ----
     public static final String EMAILJS_SEND = "https://api.emailjs.com/api/v1.0/email/send";
 
@@ -39,6 +43,15 @@ public final class ApiConfig {
 
     public static boolean hasFinnhubKey() {
         String key = BuildConfig.FINNHUB_KEY;
+        return key != null && !key.trim().isEmpty();
+    }
+
+    public static String groqKey() {
+        return BuildConfig.GROQ_API_KEY;
+    }
+
+    public static boolean hasGroqKey() {
+        String key = BuildConfig.GROQ_API_KEY;
         return key != null && !key.trim().isEmpty();
     }
 

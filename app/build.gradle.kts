@@ -13,6 +13,7 @@ if (localPropertiesFile.exists()) {
 
 val geminiKey        = localProperties.getProperty("GEMINI_API_KEY")  ?: ""
 val finnhubKey       = localProperties.getProperty("FINNHUB_KEY")     ?: ""
+val groqKey          = localProperties.getProperty("GROQ_API_KEY")    ?: ""
 val smtpEmail        = localProperties.getProperty("SMTP_EMAIL")      ?: ""
 val smtpPassword     = localProperties.getProperty("SMTP_PASSWORD")   ?: ""
 val storeFileValue   = localProperties.getProperty("STORE_FILE")      ?: "C:/Trade APP/myapp-release.jks"
@@ -34,6 +35,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GEMINI_API_KEY",  "\"$geminiKey\"")
         buildConfigField("String", "FINNHUB_KEY",     "\"$finnhubKey\"")
+        buildConfigField("String", "GROQ_API_KEY",    "\"$groqKey\"")
         buildConfigField("String", "SMTP_EMAIL",      "\"$smtpEmail\"")
         buildConfigField("String", "SMTP_PASSWORD",   "\"$smtpPassword\"")
     }

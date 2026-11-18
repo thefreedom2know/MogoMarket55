@@ -1213,7 +1213,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                     this::toggleVolumeColorMode, dialogHolder);
         }
         addChartMenuOption(content, "✦", "AI analysis",
-                "Ask Gemini about " + symbol, primaryText, secondaryText, surface,
+                "Ask AI about " + symbol, primaryText, secondaryText, surface,
                 () -> AiChatDialog.show(requireContext(),
                         "נתח את הגרף והסבר את המגמה והסיכונים.",
                         buildChartAiContext()),

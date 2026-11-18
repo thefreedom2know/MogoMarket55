@@ -60,13 +60,17 @@ public class LLMService {
 
     public LLMService() { }
 
-    public static boolean isConfigured() {
+    private static boolean hasGemini() {
         return API_KEY != null && !API_KEY.trim().isEmpty();
+    }
+
+    public static boolean isConfigured() {
+        return ApiConfig.hasGroqKey() || hasGemini();
     }
 
     // מתודה ציבורית לשליחת prompt גנרי - עוטפת את AnalysisCallback ב-LLMCallback
     public void generateContent(String prompt, LLMCallback callback) {
-        sendToGemini(prompt, new AnalysisCallback() {
+        sendPrompt(prompt, new AnalysisCallback() {
             @Override
             public void onAnalysisReceived(String analysis) {
                 callback.onSuccess(analysis);
@@ -80,7 +84,7 @@ public class LLMService {
 
     // מתודה streaming - מפצלת את התשובה למילים ושולחת בהדרגה (אפקט הקלדה)
     public void streamQuery(String prompt, StreamCallback callback) {
-        sendToGemini(prompt, new AnalysisCallback() {
+        sendPrompt(prompt, new AnalysisCallback() {
             @Override
             public void onAnalysisReceived(String result) {
                 String[] words = result.split(" ");
@@ -128,13 +132,96 @@ public class LLMService {
                 symbol, question, context, pricesStr
         );
 
+        sendPrompt(prompt, callback);
+    }
+
+    // מנתב את הבקשה: Groq (חינמי) קודם, ואם נכשל - Gemini כגיבוי
+    private void sendPrompt(String prompt, AnalysisCallback callback) {
+        if (ApiConfig.hasGroqKey()) {
+            sendToGroq(prompt, new AnalysisCallback() {
+                @Override
+                public void onAnalysisReceived(String analysis) {
+                    callback.onAnalysisReceived(analysis);
+                }
+
+                @Override
+                public void onError(String error) {
+                    if (hasGemini()) {
+                        sendToGemini(prompt, callback);
+                    } else {
+                        callback.onError(error);
+                    }
+                }
+            });
+            return;
+        }
         sendToGemini(prompt, callback);
+    }
+
+    // Groq - ממשק תואם OpenAI (chat/completions)
+    private void sendToGroq(String prompt, AnalysisCallback callback) {
+        JSONObject requestBody = new JSONObject();
+        try {
+            JSONArray messages = new JSONArray()
+                    .put(new JSONObject().put("role", "user").put("content", prompt));
+            requestBody.put("model", ApiConfig.GROQ_MODEL);
+            requestBody.put("messages", messages);
+            requestBody.put("temperature", 0.4);
+        } catch (Exception e) {
+            notifyError(callback, "שגיאה בבניית הבקשה: " + e.getMessage());
+            return;
+        }
+
+        Request request = new Request.Builder()
+                .url(ApiConfig.GROQ_CHAT)
+                .addHeader("Authorization", "Bearer " + ApiConfig.groqKey())
+                .addHeader("Content-Type", "application/json")
+                .post(RequestBody.create(requestBody.toString(),
+                        MediaType.get("application/json; charset=utf-8")))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                notifyError(callback, "שגיאת רשת: " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                String responseBody = response.body() != null ? response.body().string() : "";
+                if (response.code() == 429) {
+                    notifyError(callback, "המכסה של Groq נגמרה זמנית. נסה שוב בעוד דקה.");
+                    return;
+                }
+                if (response.code() == 401 || response.code() == 403) {
+                    notifyError(callback, "Groq דחה את המפתח. בדוק את GROQ_API_KEY.");
+                    return;
+                }
+                if (!response.isSuccessful()) {
+                    notifyError(callback, "שגיאת Groq " + response.code() + ": " + responseBody);
+                    return;
+                }
+                try {
+                    String text = new JSONObject(responseBody).getJSONArray("choices")
+                            .getJSONObject(0).getJSONObject("message")
+                            .optString("content", "").trim();
+                    if (text.isEmpty()) {
+                        notifyError(callback, "לא התקבלה תשובה מה-AI");
+                        return;
+                    }
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            callback.onAnalysisReceived(text));
+                } catch (Exception e) {
+                    notifyError(callback, "שגיאה בפענוח תגובה: " + e.getMessage());
+                }
+            }
+        });
     }
 
     // הפונקציה הפרטית שמבצעת את קריאת ה-HTTP בפועל ל-Gemini
     private void sendToGemini(String prompt, AnalysisCallback callback) {
-        if (!isConfigured()) {
-            notifyError(callback, "מפתח Gemini אינו מוגדר. הוסף GEMINI_API_KEY ל-local.properties.");
+        if (!hasGemini()) {
+            notifyError(callback, "לא הוגדר מפתח AI. הוסף GROQ_API_KEY (או GEMINI_API_KEY) ל-local.properties.");
             return;
         }
 
