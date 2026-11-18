@@ -229,7 +229,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
             multipart.addBodyPart(textPart);
             multipart.addBodyPart(htmlPart); // last part = preferred by mail clients
 
-            Message message = new MimeMessage(session);
+            MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(senderEmail, "MogoMarket"));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             message.setSubject(subject, "UTF-8");
