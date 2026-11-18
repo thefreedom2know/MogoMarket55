@@ -289,38 +289,37 @@ public class MainActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Language / שפה")
                 .setMessage("In which language should the tour be? / באיזו שפה להציג את ההסבר?")
-                .setPositiveButton("English", (d, w) -> showGuideStep(preferences, 0, false))
-                .setNegativeButton("עברית", (d, w) -> showGuideStep(preferences, 0, true))
+                .setPositiveButton("English", (d, w) -> startGuide(preferences, false))
+                .setNegativeButton("עברית", (d, w) -> startGuide(preferences, true))
                 .setCancelable(false)
                 .show();
     }
 
-    private void showGuideStep(SharedPreferences preferences, int step, boolean hebrew) {
-        String[][] steps = hebrew ? GUIDE_STEPS_HE : GUIDE_STEPS;
-        View button = findViewById(GUIDE_BUTTON_IDS[step]);
-        if (button != null) button.performClick();
-
-        float density = getResources().getDisplayMetrics().density;
+    /**
+     * The tour uses ONE dialog that stays on screen for the whole walkthrough. Only its text
+     * fades while the page behind it switches, so there is no dialog close/open flash and the
+     * next page gets a moment to finish loading before the explanation appears.
+     */
+    private void startGuide(SharedPreferences preferences, boolean hebrew) {
+        final String[][] steps = hebrew ? GUIDE_STEPS_HE : GUIDE_STEPS;
+        final float density = getResources().getDisplayMetrics().density;
         int padding = Math.round(20 * density);
-        LinearLayout content = new LinearLayout(this);
+
+        final LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(padding, padding, padding, Math.round(8 * density));
 
-        TextView counter = new TextView(this);
-        counter.setText(hebrew ? "שלב " + (step + 1) + " מתוך " + steps.length
-                : "Step " + (step + 1) + " of " + steps.length);
+        final TextView counter = new TextView(this);
         counter.setTextSize(12f);
         counter.setTextColor(0xFFFFB84D);
         content.addView(counter);
 
-        TextView title = new TextView(this);
-        title.setText(steps[step][0]);
+        final TextView title = new TextView(this);
         title.setTextSize(22f);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         content.addView(title);
 
-        TextView body = new TextView(this);
-        body.setText(steps[step][1]);
+        final TextView body = new TextView(this);
         body.setTextSize(15f);
         LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -333,28 +332,78 @@ public class MainActivity extends AppCompatActivity {
                 t.setGravity(android.view.Gravity.RIGHT);
             }
         }
-        boolean last = step == steps.length - 1;
-        AlertDialog dialog = new AlertDialog.Builder(this)
+
+        final AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(content)
-                .setPositiveButton(last ? (hebrew ? "בואו נתחיל" : "Get started") : (hebrew ? "הבא" : "Next"), (d, which) -> {
-                    if (last) {
-                        finishFirstRunGuide(preferences);
-                    } else {
-                        showGuideStep(preferences, step + 1, hebrew);
-                    }
-                })
-                .setNegativeButton(last ? null : (hebrew ? "דלג" : "Skip"), (d, which) -> finishFirstRunGuide(preferences))
+                .setPositiveButton(hebrew ? "הבא" : "Next", null)
+                .setNegativeButton(hebrew ? "דלג" : "Skip", null)
                 .setCancelable(false)
                 .create();
+
         dialog.setOnShowListener(ignored -> {
             android.view.Window window = dialog.getWindow();
-            if (window == null) return;
-            // Keep the page itself visible: card at the top, light dim.
-            window.setGravity(android.view.Gravity.TOP);
-            window.setDimAmount(0.2f);
-            android.view.WindowManager.LayoutParams lp = window.getAttributes();
-            lp.y = Math.round(40 * density);
-            window.setAttributes(lp);
+            if (window != null) {
+                // Keep the page itself visible: card at the top, light dim.
+                window.setGravity(android.view.Gravity.TOP);
+                window.setDimAmount(0.2f);
+                android.view.WindowManager.LayoutParams lp = window.getAttributes();
+                lp.y = Math.round(40 * density);
+                window.setAttributes(lp);
+            }
+
+            final android.widget.Button next = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            final android.widget.Button skip = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            final int[] step = {0};
+            final boolean[] busy = {false};
+
+            final Runnable applyText = () -> {
+                boolean last = step[0] == steps.length - 1;
+                counter.setText(hebrew ? "שלב " + (step[0] + 1) + " מתוך " + steps.length
+                        : "Step " + (step[0] + 1) + " of " + steps.length);
+                title.setText(steps[step[0]][0]);
+                body.setText(steps[step[0]][1]);
+                next.setText(last ? (hebrew ? "בואו נתחיל" : "Get started")
+                        : (hebrew ? "הבא" : "Next"));
+                skip.setVisibility(last ? View.GONE : View.VISIBLE);
+            };
+
+            // Switch the page, fade the card out, swap its text, wait for the page, fade in.
+            final Runnable transition = () -> {
+                busy[0] = true;
+                next.setEnabled(false);
+                skip.setEnabled(false);
+                View navButton = findViewById(GUIDE_BUTTON_IDS[step[0]]);
+                if (navButton != null) navButton.performClick();
+                content.animate().alpha(0f).setDuration(110).withEndAction(() -> {
+                    applyText.run();
+                    content.postDelayed(() -> content.animate().alpha(1f).setDuration(180)
+                            .withEndAction(() -> {
+                                busy[0] = false;
+                                next.setEnabled(true);
+                                skip.setEnabled(true);
+                            }).start(), 200);
+                }).start();
+            };
+
+            next.setOnClickListener(v -> {
+                if (busy[0]) return;
+                if (step[0] >= steps.length - 1) {
+                    dialog.dismiss();
+                    finishFirstRunGuide(preferences);
+                    return;
+                }
+                step[0]++;
+                transition.run();
+            });
+            skip.setOnClickListener(v -> {
+                if (busy[0]) return;
+                dialog.dismiss();
+                finishFirstRunGuide(preferences);
+            });
+
+            applyText.run();
+            View first = findViewById(GUIDE_BUTTON_IDS[0]);
+            if (first != null) first.performClick();
         });
         dialog.show();
     }
