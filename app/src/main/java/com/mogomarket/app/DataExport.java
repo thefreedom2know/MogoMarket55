@@ -87,7 +87,7 @@ final class DataExport {
         sb.append("date,symbol,side,type,shares,price,notional,fee,realized_pnl,note\n");
         List<DataSnapshot> rows = new ArrayList<>();
         for (DataSnapshot child : snapshot.getChildren()) rows.add(child);
-        rows.sort((a, b) -> Long.compare(num(a, "executedAt"), num(b, "executedAt")));
+        rows.sort((a, b) -> Double.compare(num(a, "executedAt"), num(b, "executedAt")));
         for (DataSnapshot r : rows) {
             String side = r.child("side").getValue(String.class);
             String type = r.child("type").getValue(String.class);
