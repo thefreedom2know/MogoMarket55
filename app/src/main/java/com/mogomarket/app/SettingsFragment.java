@@ -266,7 +266,104 @@ public class SettingsFragment extends Fragment {
             btnDeleteAccount.setOnClickListener(view -> showDeleteAccountDialog());
         }
 
+        setupAccordion(v);
         return v;
+    }
+
+    private static final String KEY_SETTINGS_EXPANDED = "settings_expanded_cards";
+
+    /**
+     * Turns every settings card into a collapsible section (tap the title to open or close it),
+     * styled like the rest of the app. All the controls inside keep their ids and behaviour.
+     */
+    private void setupAccordion(View root) {
+        if (!(root instanceof ViewGroup) || ((ViewGroup) root).getChildCount() == 0) return;
+        View first = ((ViewGroup) root).getChildAt(0);
+        if (!(first instanceof LinearLayout)) return;
+        final LinearLayout page = (LinearLayout) first;
+        final float dp = getResources().getDisplayMetrics().density;
+        final java.util.Set<String> expanded = new java.util.HashSet<>(
+                prefs.getStringSet(KEY_SETTINGS_EXPANDED, new java.util.HashSet<String>()));
+
+        int cardIndex = 0;
+        for (int i = 0; i < page.getChildCount(); i++) {
+            View child = page.getChildAt(i);
+            if (!(child instanceof com.google.android.material.card.MaterialCardView)) continue;
+            com.google.android.material.card.MaterialCardView card =
+                    (com.google.android.material.card.MaterialCardView) child;
+            card.setRadius(20 * dp);
+            card.setCardBackgroundColor(getResources().getColor(R.color.pf_0b0f16, null));
+            card.setStrokeColor(getResources().getColor(R.color.pf_3322d3ee, null));
+            card.setStrokeWidth(Math.max(1, Math.round(dp)));
+
+            if (card.getChildCount() == 0 || !(card.getChildAt(0) instanceof LinearLayout)) continue;
+            LinearLayout inner = (LinearLayout) card.getChildAt(0);
+            if (inner.getChildCount() < 2) continue;
+            buildAccordionCard(page, inner, "card" + cardIndex, expanded, dp);
+            cardIndex++;
+        }
+    }
+
+    private void buildAccordionCard(final LinearLayout page, final LinearLayout inner,
+                                    final String key, final java.util.Set<String> expanded,
+                                    float dp) {
+        final View header = inner.getChildAt(0);
+        final java.util.List<View> body = new java.util.ArrayList<>();
+        for (int i = 1; i < inner.getChildCount(); i++) body.add(inner.getChildAt(i));
+
+        int originalBottomMargin = 0;
+        if (header.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+            originalBottomMargin = ((ViewGroup.MarginLayoutParams) header.getLayoutParams())
+                    .bottomMargin;
+        }
+        final int bodyGap = originalBottomMargin;
+
+        if (header instanceof TextView) {
+            ((TextView) header).setTextColor(getResources().getColor(R.color.pf_22d3ee, null));
+            ((TextView) header).setTextSize(17f);
+        }
+
+        inner.removeView(header);
+        final LinearLayout bar = new LinearLayout(requireContext());
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        bar.addView(header, new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        final TextView chevron = new TextView(requireContext());
+        chevron.setTextSize(18f);
+        chevron.setTextColor(getResources().getColor(R.color.pf_22d3ee, null));
+        bar.addView(chevron, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        android.util.TypedValue outValue = new android.util.TypedValue();
+        requireContext().getTheme().resolveAttribute(
+                android.R.attr.selectableItemBackground, outValue, true);
+        bar.setBackgroundResource(outValue.resourceId);
+        bar.setClickable(true);
+        bar.setFocusable(true);
+
+        final LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        inner.addView(bar, 0, barParams);
+
+        final Runnable apply = () -> {
+            boolean open = expanded.contains(key);
+            chevron.setText(open ? "\u25B4" : "\u25BE");
+            barParams.bottomMargin = open ? bodyGap : 0;
+            bar.setLayoutParams(barParams);
+            for (View v : body) v.setVisibility(open ? View.VISIBLE : View.GONE);
+        };
+        apply.run();
+
+        bar.setOnClickListener(view -> {
+            android.transition.TransitionManager.beginDelayedTransition(
+                    page, new android.transition.AutoTransition().setDuration(180));
+            if (!expanded.remove(key)) expanded.add(key);
+            apply.run();
+            prefs.edit().putStringSet(KEY_SETTINGS_EXPANDED,
+                    new java.util.HashSet<>(expanded)).apply();
+        });
     }
 
     private void showSummaryContentDialog() {

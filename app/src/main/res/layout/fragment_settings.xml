@@ -18,7 +18,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Settings"
-            android:textColor="?attr/colorOnBackground"
+            android:textColor="?attr/colorPrimary"
             android:textSize="28sp"
             android:textStyle="bold" />
 
@@ -836,7 +836,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <!-- App Info Card -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
@@ -924,7 +924,7 @@
                 </LinearLayout>
 
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 </ScrollView>
