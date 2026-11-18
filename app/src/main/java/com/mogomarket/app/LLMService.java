@@ -18,44 +18,56 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-// שירות לתקשורת עם Google Gemini AI API
+/**
+ * AI service. Uses Groq (free, OpenAI-compatible) first and Gemini as a fallback.
+ * Supports single prompts and multi-turn chat.
+ */
 public class LLMService {
 
-    // כתובת ה-API של Gemini
     private static final String GEMINI_API_URL = ApiConfig.GEMINI_MODELS +
             "gemini-flash-latest:generateContent";
-    // מפתח API שמגיע מ-BuildConfig (שמור בצורה מאובטחת ב-local.properties)
     private static final String API_KEY = ApiConfig.geminiKey();
 
-    // HTTP client עם timeout של 30 שניות
     private final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
             .build();
 
     private final DecimalFormat df = new DecimalFormat("#.##");
-    private long lastRequestTime = 0; // זמן הבקשה האחרונה - למניעת rate limiting
+    private long lastGeminiRequestTime = 0;
 
-    // ממשק callback לניתוח גרף
+    // The Groq model that worked last time (so unavailable models are not retried).
+    private static volatile int groqModelStart = 0;
+
     public interface AnalysisCallback {
         void onAnalysisReceived(String analysis);
         void onError(String error);
     }
 
-    // ממשק callback כללי (פשוט יותר)
     public interface LLMCallback {
         void onSuccess(String result);
         void onFailure(Throwable t);
     }
 
-    // ממשק Streaming - מחזיר טקסט בזרימה תו אחר תו (אפקט הקלדה)
     public interface StreamCallback {
         void onToken(String token);
         void onComplete(String fullText);
         void onError(String error);
+    }
+
+    /** One chat message. role is "user" or "assistant". */
+    public static final class Turn {
+        public final String role;
+        public final String text;
+
+        public Turn(String role, String text) {
+            this.role = role;
+            this.text = text;
+        }
     }
 
     public LLMService() { }
@@ -68,13 +80,18 @@ public class LLMService {
         return ApiConfig.hasGroqKey() || hasGemini();
     }
 
-    // מתודה ציבורית לשליחת prompt גנרי - עוטפת את AnalysisCallback ב-LLMCallback
-    public void generateContent(String prompt, LLMCallback callback) {
-        sendPrompt(prompt, new AnalysisCallback() {
+    // ------------------------------------------------------------------------------------
+    // Public API
+    // ------------------------------------------------------------------------------------
+
+    /** Multi-turn chat. The system prompt carries the context (e.g. chart data). */
+    public void chat(String systemPrompt, List<Turn> turns, LLMCallback callback) {
+        sendChat(systemPrompt, turns, new AnalysisCallback() {
             @Override
             public void onAnalysisReceived(String analysis) {
                 callback.onSuccess(analysis);
             }
+
             @Override
             public void onError(String error) {
                 callback.onFailure(new Exception(error));
@@ -82,9 +99,16 @@ public class LLMService {
         });
     }
 
-    // מתודה streaming - מפצלת את התשובה למילים ושולחת בהדרגה (אפקט הקלדה)
+    public void generateContent(String prompt, LLMCallback callback) {
+        List<Turn> turns = new ArrayList<>();
+        turns.add(new Turn("user", prompt));
+        chat(null, turns, callback);
+    }
+
     public void streamQuery(String prompt, StreamCallback callback) {
-        sendPrompt(prompt, new AnalysisCallback() {
+        List<Turn> turns = new ArrayList<>();
+        turns.add(new Turn("user", prompt));
+        sendChat(null, turns, new AnalysisCallback() {
             @Override
             public void onAnalysisReceived(String result) {
                 String[] words = result.split(" ");
@@ -95,12 +119,11 @@ public class LLMService {
                     final int total = words.length;
                     handler.postDelayed(() -> {
                         callback.onToken(token);
-                        if (idx == total - 1) {
-                            callback.onComplete(result);
-                        }
-                    }, i * 40L); // 40ms בין כל מילה לאפקט הקלדה חלק
+                        if (idx == total - 1) callback.onComplete(result);
+                    }, i * 40L);
                 }
             }
+
             @Override
             public void onError(String error) {
                 callback.onError(error);
@@ -108,20 +131,16 @@ public class LLMService {
         });
     }
 
-    // מתודה לשאלה ספציפית על מניה - בונה prompt עשיר עם הקשר פיננסי
     public void askQuestion(String symbol, String question, String context,
                             List<Float> closes, AnalysisCallback callback) {
         String pricesStr = "לא זמין";
         if (closes != null && closes.size() >= 2) {
-            // לוקח 5 מחירי סגירה אחרונים בלבד (קיצור הפרומפט)
             String[] formatted = closes.subList(0, Math.min(5, closes.size()))
                     .stream()
                     .map(c -> df.format(c))
                     .toArray(String[]::new);
             pricesStr = String.join(", ", formatted);
         }
-
-        // בניית פרומפט מובנה עם הוראות, שאלה והקשר
         String prompt = String.format(
                 "אתה יועץ פיננסי מקצועי. ענה תמיד בעברית, תמציתי וברור.\n\n" +
                         "שאלה על מניה %s:\n\n" +
@@ -129,16 +148,19 @@ public class LLMService {
                         "הקשר: %s\n" +
                         "מחירי סגירה אחרונים: %s\n\n" +
                         "ענה בעברית בלבד, תמציתי ומקצועי.",
-                symbol, question, context, pricesStr
-        );
-
-        sendPrompt(prompt, callback);
+                symbol, question, context, pricesStr);
+        List<Turn> turns = new ArrayList<>();
+        turns.add(new Turn("user", prompt));
+        sendChat(null, turns, callback);
     }
 
-    // מנתב את הבקשה: Groq (חינמי) קודם, ואם נכשל - Gemini כגיבוי
-    private void sendPrompt(String prompt, AnalysisCallback callback) {
+    // ------------------------------------------------------------------------------------
+    // Routing: Groq first, Gemini as a fallback
+    // ------------------------------------------------------------------------------------
+
+    private void sendChat(String systemPrompt, List<Turn> turns, AnalysisCallback callback) {
         if (ApiConfig.hasGroqKey()) {
-            sendToGroq(prompt, new AnalysisCallback() {
+            sendToGroq(systemPrompt, turns, new AnalysisCallback() {
                 @Override
                 public void onAnalysisReceived(String analysis) {
                     callback.onAnalysisReceived(analysis);
@@ -147,36 +169,35 @@ public class LLMService {
                 @Override
                 public void onError(String error) {
                     if (hasGemini()) {
-                        sendToGemini(prompt, callback);
+                        sendToGemini(systemPrompt, turns, callback);
                     } else {
                         callback.onError(error);
                     }
                 }
-            });
+            }, groqModelStart);
             return;
         }
-        sendToGemini(prompt, callback);
+        sendToGemini(systemPrompt, turns, callback);
     }
 
-    // המודל שעבד בפעם האחרונה (נשמר כדי לא לנסות שוב מודלים שאין אליהם גישה)
-    private static volatile int groqModelStart = 0;
-
-    private void sendToGroq(String prompt, AnalysisCallback callback) {
-        sendToGroq(prompt, callback, groqModelStart);
-    }
-
-    // Groq - ממשק תואם OpenAI (chat/completions); עובר למודל הבא אם אין גישה למודל
-    private void sendToGroq(String prompt, AnalysisCallback callback, int modelIndex) {
+    private void sendToGroq(String systemPrompt, List<Turn> turns, AnalysisCallback callback,
+                            int modelIndex) {
         if (modelIndex >= ApiConfig.GROQ_MODELS.length) {
             notifyError(callback, "לחשבון ה-Groq שלך אין גישה לאף אחד מהמודלים. "
                     + "בדוק את ההגדרות ב-console.groq.com (Settings > Limits).");
             return;
         }
         final String model = ApiConfig.GROQ_MODELS[modelIndex];
+
         JSONObject requestBody = new JSONObject();
         try {
-            JSONArray messages = new JSONArray()
-                    .put(new JSONObject().put("role", "user").put("content", prompt));
+            JSONArray messages = new JSONArray();
+            if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
+                messages.put(new JSONObject().put("role", "system").put("content", systemPrompt));
+            }
+            for (Turn t : turns) {
+                messages.put(new JSONObject().put("role", t.role).put("content", t.text));
+            }
             requestBody.put("model", model);
             requestBody.put("messages", messages);
             requestBody.put("temperature", 0.4);
@@ -214,7 +235,7 @@ public class LLMService {
                         || (response.code() == 400 && responseBody.contains("model"));
                 if (noModelAccess) {
                     android.util.Log.w("LLM", "Groq model unavailable: " + model);
-                    sendToGroq(prompt, callback, modelIndex + 1);
+                    sendToGroq(systemPrompt, turns, callback, modelIndex + 1);
                     return;
                 }
                 if (!response.isSuccessful()) {
@@ -229,7 +250,7 @@ public class LLMService {
                         notifyError(callback, "לא התקבלה תשובה מה-AI");
                         return;
                     }
-                    groqModelStart = modelIndex; // זכור את המודל שעובד
+                    groqModelStart = modelIndex;
                     new Handler(Looper.getMainLooper()).post(() ->
                             callback.onAnalysisReceived(text));
                 } catch (Exception e) {
@@ -239,108 +260,85 @@ public class LLMService {
         });
     }
 
-    // הפונקציה הפרטית שמבצעת את קריאת ה-HTTP בפועל ל-Gemini
-    private void sendToGemini(String prompt, AnalysisCallback callback) {
+    private void sendToGemini(String systemPrompt, List<Turn> turns, AnalysisCallback callback) {
         if (!hasGemini()) {
-            notifyError(callback, "לא הוגדר מפתח AI. הוסף GROQ_API_KEY (או GEMINI_API_KEY) ל-local.properties.");
+            notifyError(callback,
+                    "לא הוגדר מפתח AI. הוסף GROQ_API_KEY (או GEMINI_API_KEY) ל-local.properties.");
             return;
         }
 
         long now = System.currentTimeMillis();
-        long timeSinceLast = now - lastRequestTime;
-
-        // Rate limiting - ממתין 5 שניות בין בקשות כדי למנוע 429 (Too Many Requests)
+        long timeSinceLast = now - lastGeminiRequestTime;
         if (timeSinceLast < 5000) {
             long delay = 5000 - timeSinceLast;
-            android.util.Log.d("LLM", "ממתין " + delay + "ms לפני הקריאה");
             new Handler(Looper.getMainLooper()).postDelayed(() ->
-                    sendToGemini(prompt, callback), delay);
+                    sendToGemini(systemPrompt, turns, callback), delay);
             return;
         }
+        lastGeminiRequestTime = System.currentTimeMillis();
 
-        lastRequestTime = System.currentTimeMillis();
-        android.util.Log.d("LLM", "שולח בקשה ל-Gemini...");
-
-        // בניית גוף ה-JSON לפי פורמט API של Gemini
         JSONObject requestBody = new JSONObject();
         try {
-            JSONObject part = new JSONObject().put("text", prompt);
-            JSONArray parts = new JSONArray().put(part);
-            JSONObject content = new JSONObject().put("parts", parts);
-            JSONArray contents = new JSONArray().put(content);
+            JSONArray contents = new JSONArray();
+            for (Turn t : turns) {
+                contents.put(new JSONObject()
+                        .put("role", "assistant".equals(t.role) ? "model" : "user")
+                        .put("parts", new JSONArray().put(new JSONObject().put("text", t.text))));
+            }
             requestBody.put("contents", contents);
+            if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
+                requestBody.put("systemInstruction", new JSONObject().put("parts",
+                        new JSONArray().put(new JSONObject().put("text", systemPrompt))));
+            }
         } catch (Exception e) {
             notifyError(callback, "שגיאה בבניית הבקשה: " + e.getMessage());
             return;
         }
 
-        RequestBody body = RequestBody.create(
-                requestBody.toString(),
-                MediaType.get("application/json; charset=utf-8")
-        );
-
         Request request = new Request.Builder()
                 .url(GEMINI_API_URL)
                 .addHeader("Accept", "application/json")
                 .addHeader("x-goog-api-key", API_KEY)
-                .post(body)
+                .post(RequestBody.create(requestBody.toString(),
+                        MediaType.get("application/json; charset=utf-8")))
                 .build();
 
-        // ביצוע הבקשה באופן אסינכרוני
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                android.util.Log.e("LLM", "שגיאת רשת: " + e.getMessage());
                 notifyError(callback, "שגיאת רשת: " + e.getMessage());
             }
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 String responseBody = response.body() != null ? response.body().string() : "";
-                android.util.Log.d("LLM", "קוד תגובה: " + response.code());
-
-                // קוד 429 = חרגנו ממכסת הבקשות - עוצרים ולא מנסים שוב
                 if (response.code() == 429) {
-                    android.util.Log.w("LLM", "429 - המכסה נגמרה");
-                    notifyError(callback, "המכסה היומית של Gemini נגמרה.\nנסה שוב מחר בשעה 10:00 בבוקר.");
+                    notifyError(callback, "המכסה היומית של Gemini נגמרה.\nנסה שוב מאוחר יותר.");
                     return;
                 }
-
                 if (response.code() == 403) {
-                    android.util.Log.w("LLM", "Gemini access denied");
-                    notifyError(callback, "Gemini דחה את הבקשה. בדוק שהמפתח תקין, פעיל ומורשה ל-Gemini API.");
+                    notifyError(callback, "Gemini דחה את הבקשה. בדוק שהמפתח תקין ופעיל.");
                     return;
                 }
-
                 if (!response.isSuccessful()) {
                     notifyError(callback, "שגיאת API " + response.code() + ": " + responseBody);
                     return;
                 }
-
                 try {
-                    // פענוח תשובת ה-JSON מ-Gemini
-                    JSONObject json = new JSONObject(responseBody);
-                    JSONArray candidates = json.optJSONArray("candidates");
+                    JSONArray candidates = new JSONObject(responseBody).optJSONArray("candidates");
                     if (candidates == null || candidates.length() == 0) {
                         notifyError(callback, "לא התקבלה תשובה מה-AI");
                         return;
                     }
-
-                    // חילוץ הטקסט מהמבנה: candidates[0].content.parts[i].text
-                    JSONObject firstCandidate = candidates.getJSONObject(0);
-                    JSONObject content = firstCandidate.getJSONObject("content");
-                    JSONArray parts = content.getJSONArray("parts");
+                    JSONArray parts = candidates.getJSONObject(0)
+                            .getJSONObject("content").getJSONArray("parts");
                     StringBuilder sb = new StringBuilder();
                     for (int i = 0; i < parts.length(); i++) {
                         sb.append(parts.getJSONObject(i).optString("text", ""));
                     }
                     String result = sb.toString().trim();
-                    android.util.Log.d("LLM", "תשובה התקבלה בהצלחה!");
-
-                    // החזרת התשובה ל-Main Thread
                     new Handler(Looper.getMainLooper()).post(() ->
                             callback.onAnalysisReceived(result));
-
                 } catch (Exception e) {
                     notifyError(callback, "שגיאה בפענוח תגובה: " + e.getMessage());
                 }
@@ -348,7 +346,6 @@ public class LLMService {
         });
     }
 
-    // פונקציית עזר - תמיד מחזירה שגיאה ב-Main Thread
     private void notifyError(AnalysisCallback callback, String error) {
         new Handler(Looper.getMainLooper()).post(() -> callback.onError(error));
     }

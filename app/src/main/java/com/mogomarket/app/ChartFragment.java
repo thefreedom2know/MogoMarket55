@@ -202,6 +202,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private com.google.android.material.button.MaterialButton btnTimeframePicker;
     private PullRefreshLayout pullRefreshLayout;
     private com.google.android.material.button.MaterialButton btnChartMenu;
+    private View btnChartAi;
     private com.google.android.material.button.MaterialButton btnMagnetMode;
     private Button btnLoad, btnTimeFrame;
     private com.google.android.material.button.MaterialButton btnExpandChart, btnExitFullscreen, btnSettings;
@@ -390,6 +391,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         btnTimeframePicker = v.findViewById(R.id.btnTimeframePicker);
         pullRefreshLayout = v.findViewById(R.id.pullRefresh);
         btnChartMenu       = v.findViewById(R.id.btnChartMenu);
+        btnChartAi         = v.findViewById(R.id.btnChartAi);
         tickerLabelTop     = v.findViewById(R.id.tickerLabelTop);
         chartTickerTitle   = v.findViewById(R.id.chartTickerTitle);
 
@@ -1058,6 +1060,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             pullRefresh.setRefreshAction(() -> fetchStockData(symbol, interval));
         }
 
+        if (btnChartAi != null) {
+            btnChartAi.setOnClickListener(x -> AiChatDialog.showForChart(
+                    requireContext(), cleanDisplaySymbol(symbol), buildChartAiContext()));
+        }
         if (btnChartMenu != null) {
             btnChartMenu.setOnClickListener(this::showChartMenu);
         }
@@ -1214,9 +1220,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         }
         addChartMenuOption(content, "✦", "AI analysis",
                 "Ask AI about " + symbol, primaryText, secondaryText, surface,
-                () -> AiChatDialog.show(requireContext(),
-                        "נתח את הגרף והסבר את המגמה והסיכונים.",
-                        buildChartAiContext()),
+                () -> AiChatDialog.showForChart(requireContext(),
+                        cleanDisplaySymbol(symbol), buildChartAiContext()),
                 dialogHolder);
 
         dialogHolder[0] = new AlertDialog.Builder(context)
@@ -1292,8 +1297,23 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         StringBuilder context = new StringBuilder()
                 .append("סימול: ").append(symbol)
                 .append("\nטווח גרף: ").append(visibleChartRange)
-                .append("\nמחיר אחרון: ").append(lastPrice)
-                .append("\nמחירי סגירה אחרונים (מהישן לחדש): ");
+                .append("\nמחיר אחרון: ").append(lastPrice);
+        if (fullCloses.size() >= 2) {
+            float first = fullCloses.get(0);
+            float high = first;
+            float low = first;
+            for (float c : fullCloses) {
+                if (c > high) high = c;
+                if (c < low) low = c;
+            }
+            float last = fullCloses.get(fullCloses.size() - 1);
+            context.append("\nשינוי לאורך כל הטווח: ")
+                    .append(String.format(java.util.Locale.US, "%.2f%%",
+                            first != 0f ? (last - first) / first * 100f : 0f))
+                    .append("\nשיא בטווח: ").append(high)
+                    .append("\nשפל בטווח: ").append(low);
+        }
+        context.append("\nמחירי סגירה אחרונים (מהישן לחדש): ");
         int start = Math.max(0, fullCloses.size() - 10);
         for (int i = start; i < fullCloses.size(); i++) {
             if (i > start) context.append(", ");
