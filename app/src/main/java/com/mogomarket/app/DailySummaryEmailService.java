@@ -99,8 +99,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
                                   boolean showSuccessNotification) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null || user.isAnonymous()) {
-            Log.w(TAG, "Daily summary skipped: no signed-in user.");
-            return false;
+            return fail(context, "You are not signed in with an account (guest mode can't send email).");
         }
 
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -108,8 +107,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
         String toEmail = recipients != null && !recipients.trim().isEmpty()
                 ? recipients.trim() : user.getEmail();
         if (toEmail == null || toEmail.trim().isEmpty()) {
-            Log.w(TAG, "Daily summary skipped: no recipient e-mail.");
-            return false;
+            return fail(context, "No recipient email. Set one under 'Send to'.");
         }
 
         try {
@@ -164,9 +162,22 @@ public class DailySummaryEmailService extends BroadcastReceiver {
             return sendEmail(context, toEmail, subject, rendered.text, rendered.html,
                     showSuccessNotification);
         } catch (Exception e) {
-            Log.e(TAG, "Failed to build daily summary", e);
-            return false;
+            return fail(context, "Could not build the summary: " + describe(e));
         }
+    }
+
+    public static final String KEY_LAST_ERROR = "daily_email_last_error";
+
+    private static boolean fail(Context context, String message) {
+        Log.e(TAG, message);
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putString(KEY_LAST_ERROR, message).apply();
+        return false;
+    }
+
+    private static String describe(Exception e) {
+        String m = e.getMessage();
+        return e.getClass().getSimpleName() + (m == null ? "" : ": " + m);
     }
 
     private static List<StockData> readTrades(DataSnapshot snapshot) {
@@ -184,8 +195,8 @@ public class DailySummaryEmailService extends BroadcastReceiver {
         String senderEmail = ApiConfig.smtpEmail();
         String senderPassword = ApiConfig.smtpPassword();
         if (senderEmail.trim().isEmpty() || senderPassword.trim().isEmpty()) {
-            Log.e(TAG, "SMTP credentials are missing from the build configuration.");
-            return false;
+            return fail(context, "This app build has no sender email configured "
+                    + "(SMTP_EMAIL / SMTP_PASSWORD missing in local.properties when it was built).");
         }
 
         try {
@@ -222,13 +233,18 @@ public class DailySummaryEmailService extends BroadcastReceiver {
             Transport.send(message);
 
             Log.i(TAG, "Daily summary sent: " + subject);
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                    .remove(KEY_LAST_ERROR).apply();
             if (showSuccessNotification) {
                 showNotification(context, "Daily summary sent", "The email was sent to " + toEmail);
             }
             return true;
         } catch (Exception e) {
-            Log.e(TAG, "Failed to send daily summary email", e);
-            return false;
+            if (e instanceof javax.mail.AuthenticationFailedException) {
+                return fail(context, "Gmail rejected the sender login. The sender needs a Gmail "
+                        + "App Password (2-step verification on), not the normal password.");
+            }
+            return fail(context, "Sending failed: " + describe(e));
         }
     }
 
@@ -326,6 +342,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
                 .setSmallIcon(android.R.drawable.ic_dialog_email)
                 .setContentTitle(title)
                 .setContentText(text)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
                 .setAutoCancel(true);
         try {
             manager.notify(NOTIFICATION_ID, notification.build());
@@ -335,7 +352,8 @@ public class DailySummaryEmailService extends BroadcastReceiver {
     }
 
     static void showFailureNotification(Context context) {
-        showNotification(context, "Daily summary failed",
-                "Check your sign-in, network, and email settings.");
+        String reason = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_LAST_ERROR, "Check your sign-in, network, and email settings.");
+        showNotification(context, "Daily summary failed", reason);
     }
 }
