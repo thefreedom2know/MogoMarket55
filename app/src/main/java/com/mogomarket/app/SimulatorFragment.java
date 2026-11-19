@@ -88,7 +88,7 @@ public class SimulatorFragment extends Fragment {
     }
 
     private static final String[] TAB_NAMES = {
-            "Trade", "Portfolio", "Orders", "History", "Stats", "What-if"};
+            "Trade", "Portfolio", "Orders", "History", "Stats", "What-if", "Challenges"};
     private static final long POLL_MS = 8000;
 
     private DatabaseReference acct;
@@ -112,6 +112,17 @@ public class SimulatorFragment extends Fragment {
     private boolean pollBusy;
     private long lastEquityWrite;
     private double lastEquityValue = -1;
+
+    // challenges + leaderboard
+    private final Map<String, Double> baselines = new HashMap<>();
+    private final Map<String, Long> achievements = new HashMap<>();
+    private final Set<String> baselineWriting = new HashSet<>();
+    private boolean lbOptIn;
+    private String lbName = "";
+    private final List<Object[]> lbRows = new ArrayList<>(); // {uid, name, pct, equity}
+    private long lastLbPublish;
+    private long lastLbLoad;
+    private String lbError;
 
     // ---- colors ----
     private int cText, cSub, cSurface, cAccent, cGain, cLoss, cChip, cStroke;
@@ -326,6 +337,16 @@ public class SimulatorFragment extends Fragment {
                     trades.add(t);
                 }
                 trades.sort((a, b) -> Long.compare(a.at, b.at));
+                baselines.clear();
+                for (DataSnapshot b : snap.child("baselines").getChildren()) {
+                    baselines.put(b.getKey() + "E", dbl(b, "equity"));
+                    baselines.put(b.getKey() + "S", dbl(b, "spx"));
+                }
+                achievements.clear();
+                for (DataSnapshot a : snap.child("achievements").getChildren()) {
+                    Long when = a.getValue(Long.class);
+                    achievements.put(a.getKey(), when == null ? 0L : when);
+                }
                 renderAll();
                 pollQuotes();
             }
@@ -338,6 +359,20 @@ public class SimulatorFragment extends Fragment {
             }
         };
         acct.addValueEventListener(acctListener);
+        profileRef().addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snap) {
+                if (!isAdded()) return;
+                Boolean in = snap.child("optIn").getValue(Boolean.class);
+                String name = snap.child("nickname").getValue(String.class);
+                lbOptIn = in != null && in;
+                lbName = name == null ? "" : name;
+                renderChallenges();
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
 
         equityQuery = equityRef.limitToLast(500);
         equityListener = new ValueEventListener() {
@@ -377,6 +412,7 @@ public class SimulatorFragment extends Fragment {
         for (Ord o : orders) symbols.add(o.symbol);
         String typed = tradeSymbol();
         if (!typed.isEmpty()) symbols.add(typed);
+        symbols.add("SPX"); // benchmark for the challenges
         if (symbols.isEmpty()) return;
         pollBusy = true;
         PaperEngine.fetchMany(symbols, result -> {
@@ -395,6 +431,9 @@ public class SimulatorFragment extends Fragment {
         }
         checkTriggers();
         maybeWriteEquity();
+        ensureBaselines();
+        maybePublishLeaderboard();
+        if (currentTab == 6) loadLeaderboard(false);
         renderAll();
     }
 
@@ -630,6 +669,10 @@ public class SimulatorFragment extends Fragment {
             }
         }
         if (index == 4) renderStats();
+        if (index == 6) {
+            renderChallenges();
+            loadLeaderboard(true);
+        }
     }
 
     // ---- Trade tab ----------------------------------------------------------------------
@@ -1085,6 +1128,7 @@ public class SimulatorFragment extends Fragment {
         renderOrders();
         renderHistory();
         renderStats();
+        renderChallenges();
         updateEstimate();
         refreshTabTitles();
     }
@@ -1472,6 +1516,306 @@ public class SimulatorFragment extends Fragment {
     // Account dialog
     // ====================================================================================
 
+    // ====================================================================================
+    // Challenges + leaderboard
+    // ====================================================================================
+
+    private String uid() {
+        FirebaseUser u = FirebaseAuth.getInstance().getCurrentUser();
+        return u == null ? "" : u.getUid();
+    }
+
+    private DatabaseReference profileRef() {
+        return FirebaseDatabase.getInstance().getReference("users").child(uid())
+                .child("leaderboard-profile");
+    }
+
+    private DatabaseReference leaderboardMonth() {
+        return FirebaseDatabase.getInstance().getReference("leaderboard")
+                .child(ChallengeEngine.monthKey(System.currentTimeMillis()));
+    }
+
+    /** Remembers the account value / S&P level at the start of the week and month. */
+    private void ensureBaselines() {
+        PaperEngine.Quote spx = quotes.get("SPX");
+        if (spx == null) return;
+        long now = System.currentTimeMillis();
+        String[] keys = {ChallengeEngine.weekKey(now), ChallengeEngine.monthKey(now)};
+        for (String key : keys) {
+            Double existing = baselines.get(key + "E");
+            if ((existing != null && existing > 0) || !baselineWriting.add(key)) continue;
+            Map<String, Object> m = new HashMap<>();
+            m.put("equity", equity());
+            m.put("spx", spx.price);
+            acct.child("baselines").child(key).setValue(m);
+        }
+    }
+
+    private ChallengeEngine.Inputs challengeInputs(long now) {
+        ChallengeEngine.Inputs in = new ChallengeEngine.Inputs();
+        double eq = equity();
+        Double wb = baselines.get(ChallengeEngine.weekKey(now) + "E");
+        Double mb = baselines.get(ChallengeEngine.monthKey(now) + "E");
+        Double sb = baselines.get(ChallengeEngine.monthKey(now) + "S");
+        if (wb != null && wb > 0) in.weekPct = (eq - wb) / wb * 100.0;
+        if (mb != null && mb > 0) in.monthPct = (eq - mb) / mb * 100.0;
+        PaperEngine.Quote spx = quotes.get("SPX");
+        if (spx != null && sb != null && sb > 0) in.spxMonthPct = (spx.price - sb) / sb * 100.0;
+        long monthStart = ChallengeEngine.monthStart(now);
+        for (Trd t : trades) {
+            if (!"SELL".equals(t.side) || t.at < monthStart) continue;
+            in.monthClosedTrades++;
+            if (t.realized > 0) in.monthWins++;
+        }
+        double peak = 0;
+        double maxDd = 0;
+        for (double[] pt : equityPts) {
+            if (pt[0] < monthStart) continue;
+            peak = Math.max(peak, pt[1]);
+            if (peak > 0) maxDd = Math.max(maxDd, (peak - pt[1]) / peak * 100.0);
+        }
+        in.monthMaxDrawdownPct = maxDd;
+        return in;
+    }
+
+    private int monthClosedTrades(long now) {
+        long monthStart = ChallengeEngine.monthStart(now);
+        int n = 0;
+        for (Trd t : trades) if ("SELL".equals(t.side) && t.at >= monthStart) n++;
+        return n;
+    }
+
+    private void maybePublishLeaderboard() {
+        if (!lbOptIn || lbName.isEmpty() || uid().isEmpty()) return;
+        long now = System.currentTimeMillis();
+        if (now - lastLbPublish < 60_000) return;
+        Double base = baselines.get(ChallengeEngine.monthKey(now) + "E");
+        if (base == null || base <= 0) return;
+        for (Pos p : positions) if (!quotes.containsKey(p.symbol)) return;
+        double eq = equity();
+        double pct = Math.max(-100, Math.min(1000, (eq - base) / base * 100.0));
+        Map<String, Object> row = new HashMap<>();
+        row.put("name", lbName);
+        row.put("pct", Math.round(pct * 100.0) / 100.0);
+        row.put("equity", Math.round(eq * 100.0) / 100.0);
+        row.put("trades", monthClosedTrades(now));
+        row.put("updatedAt", now);
+        leaderboardMonth().child(uid()).setValue(row);
+        lastLbPublish = now;
+    }
+
+    private void loadLeaderboard(boolean force) {
+        if (!isAdded() || uid().isEmpty()) return;
+        long now = System.currentTimeMillis();
+        if (!force && now - lastLbLoad < 60_000) return;
+        lastLbLoad = now;
+        leaderboardMonth().orderByChild("pct").limitToLast(20)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snap) {
+                        if (!isAdded()) return;
+                        lbRows.clear();
+                        for (DataSnapshot c : snap.getChildren()) {
+                            String name = c.child("name").getValue(String.class);
+                            lbRows.add(new Object[]{c.getKey(), name == null ? "?" : name,
+                                    dbl(c, "pct"), dbl(c, "equity")});
+                        }
+                        lbRows.sort((a, b) -> Double.compare((Double) b[2], (Double) a[2]));
+                        lbError = null;
+                        renderChallenges();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        if (!isAdded()) return;
+                        lbError = "Leaderboard unavailable: " + error.getMessage();
+                        renderChallenges();
+                    }
+                });
+    }
+
+    private static String challengeName(String achievementKey) {
+        String id = achievementKey.contains("_")
+                ? achievementKey.substring(0, achievementKey.indexOf('_')) : achievementKey;
+        String period = achievementKey.contains("_")
+                ? achievementKey.substring(achievementKey.indexOf('_') + 1) : "";
+        String title;
+        switch (id) {
+            case "week2": title = "Weekly sprint"; break;
+            case "month10": title = "Monthly +10%"; break;
+            case "beatspx": title = "Beat the market"; break;
+            case "sharp": title = "Sharpshooter"; break;
+            case "guard": title = "Capital guardian"; break;
+            default: title = id;
+        }
+        return title + "  \u00B7  " + period.substring(1);
+    }
+
+    private void renderChallenges() {
+        if (tabBodies[6] == null || !isAdded()) return;
+        LinearLayout body = tabBodies[6];
+        body.removeAllViews();
+        long now = System.currentTimeMillis();
+        ChallengeEngine.Inputs in = challengeInputs(now);
+
+        // ---- summary ----
+        LinearLayout sum = card(body, 0);
+        sum.addView(text("Your period", 15, cText, true));
+        String weekText = Double.isNaN(in.weekPct) ? "--"
+                : String.format(Locale.US, "%+.2f%%", in.weekPct);
+        String monthText = Double.isNaN(in.monthPct) ? "--"
+                : String.format(Locale.US, "%+.2f%%", in.monthPct);
+        sum.addView(text("This week " + weekText + "   \u00B7   This month " + monthText, 14,
+                Double.isNaN(in.monthPct) || in.monthPct >= 0 ? cGain : cLoss, true),
+                lp(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 4));
+        sum.addView(text("Progress is measured from the first time you opened the simulator "
+                + "in the week / month.", 11, cSub, false), lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 2));
+
+        // ---- challenges ----
+        List<ChallengeEngine.Status> list = ChallengeEngine.evaluate(in, now);
+        for (ChallengeEngine.Status st : list) {
+            if (st.state == ChallengeEngine.DONE && !achievements.containsKey(st.achievementKey())
+                    && inFlight.add("A" + st.achievementKey())) {
+                final String key = st.achievementKey();
+                achievements.put(key, now);
+                acct.child("achievements").child(key).setValue(now);
+                toast("Challenge completed: " + st.title + "!");
+            }
+            LinearLayout box = card(body, 10);
+            LinearLayout head = new LinearLayout(requireContext());
+            head.setOrientation(LinearLayout.HORIZONTAL);
+            head.addView(text(st.title, 16, cText, true), new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            int color = st.state == ChallengeEngine.DONE ? cGain
+                    : st.state == ChallengeEngine.FAILED ? cLoss : cAccent;
+            String label = st.state == ChallengeEngine.DONE ? "\u2713 Completed"
+                    : st.state == ChallengeEngine.FAILED ? "\u2717 Failed" : "In progress";
+            head.addView(text(label, 12, color, true));
+            box.addView(head);
+            box.addView(text(st.description, 12, cSub, false), lp(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, 2));
+            ProgressBar bar = new ProgressBar(requireContext(), null,
+                    android.R.attr.progressBarStyleHorizontal);
+            bar.setMax(1000);
+            bar.setProgress((int) Math.round(st.progress * 1000));
+            bar.setProgressTintList(ColorStateList.valueOf(color));
+            box.addView(bar, lp(ViewGroup.LayoutParams.MATCH_PARENT, dp(10), 8));
+            box.addView(text(st.detail, 12, cText, false), lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 4));
+        }
+
+        // ---- achievements ----
+        LinearLayout ach = card(body, 10);
+        ach.addView(text("Achievements (" + achievements.size() + ")", 15, cText, true));
+        if (achievements.isEmpty()) {
+            ach.addView(text("Complete a challenge to earn your first badge.", 12, cSub, false),
+                    lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT, 4));
+        } else {
+            List<Map.Entry<String, Long>> earned = new ArrayList<>(achievements.entrySet());
+            earned.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+            for (int i = 0; i < Math.min(12, earned.size()); i++) {
+                ach.addView(text("\uD83C\uDFC6  " + challengeName(earned.get(i).getKey()), 13,
+                        cText, false), lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT, 4));
+            }
+        }
+
+        // ---- leaderboard ----
+        LinearLayout lb = card(body, 10);
+        lb.addView(text("Monthly leaderboard", 15, cText, true));
+        lb.addView(text("Ranked by this month's simulator return. Only your nickname and "
+                + "return are shown - for fun, results are reported by the app itself.", 11,
+                cSub, false), lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 2));
+        if (!lbOptIn) {
+            MaterialButton join = button("Join the leaderboard", cAccent, Color.WHITE,
+                    x -> showNicknameDialog());
+            lb.addView(join, lp(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 10));
+        } else {
+            LinearLayout actions = new LinearLayout(requireContext());
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            MaterialButton rename = button("Nickname: " + lbName, cChip, cText,
+                    x -> showNicknameDialog());
+            MaterialButton leave = button("Leave", cChip, cLoss, x -> leaveLeaderboard());
+            actions.addView(rename);
+            LinearLayout.LayoutParams lpLeave = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lpLeave.leftMargin = dp(8);
+            actions.addView(leave, lpLeave);
+            lb.addView(actions, lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 10));
+        }
+        if (lbError != null) {
+            lb.addView(text(lbError, 12, cLoss, false), lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 8));
+        } else if (lbRows.isEmpty()) {
+            lb.addView(text("Nobody has joined this month yet - be the first.", 12, cSub, false),
+                    lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT, 8));
+        }
+        String me = uid();
+        for (int i = 0; i < lbRows.size(); i++) {
+            Object[] row = lbRows.get(i);
+            boolean mine = me.equals(row[0]);
+            double pct = (Double) row[2];
+            LinearLayout line = new LinearLayout(requireContext());
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            line.addView(text("#" + (i + 1), 13, mine ? cAccent : cSub, true),
+                    new LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.WRAP_CONTENT));
+            line.addView(text(String.valueOf(row[1]) + (mine ? "  (you)" : ""), 14,
+                    mine ? cAccent : cText, mine), new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            line.addView(text(String.format(Locale.US, "%+.2f%%", pct), 14,
+                    pct >= 0 ? cGain : cLoss, true));
+            lb.addView(line, lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 8));
+        }
+    }
+
+    private void showNicknameDialog() {
+        final android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setHint("Nickname (3-16 letters / digits)");
+        input.setSingleLine(true);
+        input.setText(lbName);
+        LinearLayout box = new LinearLayout(requireContext());
+        box.setPadding(dp(20), dp(10), dp(20), 0);
+        box.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Leaderboard nickname")
+                .setMessage("Do not use your real name or email.")
+                .setView(box)
+                .setPositiveButton("Save", (d, w) -> {
+                    String name = input.getText().toString().trim();
+                    if (!name.matches("[\\p{L}\\p{N}_ -]{3,16}")) {
+                        toast("Use 3-16 letters, digits, spaces, - or _");
+                        return;
+                    }
+                    Map<String, Object> profile = new HashMap<>();
+                    profile.put("optIn", true);
+                    profile.put("nickname", name);
+                    profileRef().setValue(profile);
+                    lbOptIn = true;
+                    lbName = name;
+                    lastLbPublish = 0;
+                    maybePublishLeaderboard();
+                    renderChallenges();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void leaveLeaderboard() {
+        profileRef().child("optIn").setValue(false);
+        leaderboardMonth().child(uid()).removeValue();
+        lbOptIn = false;
+        lbRows.removeIf(r -> uid().equals(r[0]));
+        renderChallenges();
+    }
+
     private void showAccountDialog() {
         Context ctx = requireContext();
         LinearLayout box = new LinearLayout(ctx);
@@ -1509,6 +1853,7 @@ public class SimulatorFragment extends Fragment {
                                             (ok, msg) -> {
                                                 lastEquityValue = -1;
                                                 lastEquityWrite = 0;
+                                                baselineWriting.clear();
                                                 toast(msg);
                                             }))
                             .setNegativeButton("Cancel", null)
