@@ -236,6 +236,12 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private String symbol = "SPY";
     private String interval = "1day";
     private String visibleChartRange = "1d";
+    /** Candle size in minutes: 0 = daily (default), -1 = weekly, otherwise intraday minutes. */
+    private int candleMinutes = 0;
+    private static final int[] CANDLE_VALUES = {0, 1, 5, 15, 30, 60, 65, 90, 120, 240, -1};
+    private static final String[] CANDLE_LABELS = {"1 day (default)", "1 minute", "5 minutes",
+            "15 minutes", "30 minutes", "1 hour", "65 minutes", "90 minutes", "2 hours",
+            "4 hours", "1 week"};
     private boolean isCandleStick = true;
     private final DecimalFormat df = new DecimalFormat("#.##");
     private String latestQuery = "";
@@ -365,6 +371,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         currentTFIndex = getTimeframeIndex(
                 prefs.getString(KEY_DEFAULT_TIMEFRAME, "1Y"));
         visibleChartRange = TIMEFRAMES[currentTFIndex][3];
+        candleMinutes = prefs.getInt("chart_candle_minutes", 0);
 
         String mode = prefs.getString(KEY_SYMBOL_MODE, "last");
         if ("fixed".equals(mode)) {
@@ -1216,6 +1223,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         tiles.add(new Object[]{"\u25F7", "Visible range",
                 visibleChartRange.toUpperCase(Locale.US), false,
                 (Runnable) this::showVisibleRangeDialog});
+        tiles.add(new Object[]{"\u25A5", "Candle size", candleLabelShort(),
+                candleMinutes != 0, (Runnable) this::showCandleSizeDialog});
         tiles.add(new Object[]{"150", "150-day MA", showMa150 ? "On" : "Off", showMa150,
                 (Runnable) this::toggleMa150});
         tiles.add(new Object[]{"\u25AE", "Volume", showVolume ? "On" : "Off", showVolume,
@@ -1340,6 +1349,100 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             context.append(fullCloses.get(i));
         }
         return context.toString();
+    }
+
+    private String candleLabelShort() {
+        for (int i = 0; i < CANDLE_VALUES.length; i++) {
+            if (CANDLE_VALUES[i] == candleMinutes) {
+                return i == 0 ? "1 day" : CANDLE_LABELS[i];
+            }
+        }
+        return "1 day";
+    }
+
+    private void showCandleSizeDialog() {
+        int selected = 0;
+        for (int i = 0; i < CANDLE_VALUES.length; i++) {
+            if (CANDLE_VALUES[i] == candleMinutes) selected = i;
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Candle size")
+                .setSingleChoiceItems(CANDLE_LABELS, selected, (dialog, which) -> {
+                    candleMinutes = CANDLE_VALUES[which];
+                    requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .edit().putInt("chart_candle_minutes", candleMinutes).apply();
+                    hideCrosshairInfo();
+                    dialog.dismiss();
+                    if (candleMinutes > 0 && !intradayRangeAllowed()) {
+                        Toast.makeText(requireContext(), "Intraday data is limited to "
+                                + effectiveRange(visibleChartRange) + " of history",
+                                Toast.LENGTH_LONG).show();
+                    }
+                    fetchStockData(symbol, interval);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private boolean intradayRangeAllowed() {
+        return effectiveRange(visibleChartRange).equals(visibleChartRange);
+    }
+
+    /** Intraday candles only exist for a limited history; clamp the range accordingly. */
+    private String effectiveRange(String range) {
+        if (candleMinutes <= 0) return range;
+        String[] order = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "max"};
+        String cap;
+        int base = baseMinutes();
+        if (base == 1) cap = "5d";
+        else if (base <= 30) cap = "1mo";
+        else cap = "1y";
+        int ri = -1, ci = 0;
+        for (int i = 0; i < order.length; i++) {
+            if (order[i].equals(range)) ri = i;
+            if (order[i].equals(cap)) ci = i;
+        }
+        return ri < 0 || ri > ci ? cap : range;
+    }
+
+    /** Native Yahoo/Binance bar size used to build the requested candle size. */
+    private int baseMinutes() {
+        int m = candleMinutes;
+        if (m <= 0) return 0;
+        if (m % 60 == 0) return 60;
+        if (m % 30 == 0) return 30;
+        if (m % 15 == 0) return 15;
+        if (m % 5 == 0) return 5;
+        return 1;
+    }
+
+    private static final class Bar {
+        long t; float o, h, l, c, v;
+    }
+
+    /** Merges base bars into buckets of {@code minutes}, aligned to each trading day's first bar. */
+    private static List<Bar> aggregateBars(List<Bar> src, int minutes, long gmtOffsetSec) {
+        List<Bar> out = new ArrayList<>();
+        long span = minutes * 60_000L;
+        long curDay = Long.MIN_VALUE, dayFirst = 0, curBucket = Long.MIN_VALUE;
+        Bar cur = null;
+        for (Bar b : src) {
+            long day = Math.floorDiv(b.t / 1000L + gmtOffsetSec, 86400L);
+            if (day != curDay) { curDay = day; dayFirst = b.t; curBucket = Long.MIN_VALUE; }
+            long bucket = (b.t - dayFirst) / span;
+            if (cur == null || bucket != curBucket || day != Math.floorDiv(cur.t / 1000L + gmtOffsetSec, 86400L)) {
+                cur = new Bar();
+                cur.t = b.t; cur.o = b.o; cur.h = b.h; cur.l = b.l; cur.c = b.c; cur.v = b.v;
+                out.add(cur);
+                curBucket = bucket;
+            } else {
+                cur.h = Math.max(cur.h, b.h);
+                cur.l = Math.min(cur.l, b.l);
+                cur.c = b.c;
+                cur.v += b.v;
+            }
+        }
+        return out;
     }
 
     private void showVisibleRangeDialog() {
@@ -1623,12 +1726,17 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     }
 
     private String[] getYahooParams() {
+        if (candleMinutes == -1) return new String[]{"1wk", visibleChartRange};
+        if (candleMinutes > 0) {
+            int base = baseMinutes();
+            return new String[]{base == 60 ? "60m" : base + "m", effectiveRange(visibleChartRange)};
+        }
         return new String[]{"1d", visibleChartRange};
     }
 
     private SimpleDateFormat dateFormatFor(String yahooInterval) {
         switch (yahooInterval) {
-            case "1m": case "5m": case "15m": case "30m": case "1h":
+            case "1m": case "5m": case "15m": case "30m": case "60m": case "1h":
                 return new SimpleDateFormat("MM/dd HH:mm", Locale.US);
             case "1mo":
                 return new SimpleDateFormat("yyyy-MM", Locale.US);
@@ -1678,17 +1786,28 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                     List<Float> volumes = new ArrayList<>();
                     SimpleDateFormat sdf = dateFormatFor(p[0]);
                     float lc = 0f; int vc = 0;
-                    int startIdx = 0;
-                    for (int i = startIdx; i < size; i++) {
+                    List<Bar> raw = new ArrayList<>();
+                    for (int i = 0; i < size; i++) {
                         if (cls.isNull(i)||opens.isNull(i)||highs.isNull(i)||lows.isNull(i)) continue;
-                        float o=(float)opens.getDouble(i), h=(float)highs.getDouble(i),
-                              l=(float)lows.getDouble(i),  c=(float)cls.getDouble(i);
-                        labels.add(sdf.format(new Date(ts.getLong(i)*1000L)));
-                        timestamps.add(ts.getLong(i) * 1000L);
-                        closes.add(c);
-                        volumes.add(vols != null && !vols.isNull(i) ? (float) vols.getDouble(i) : 0f);
-                        entries.add(new CandleEntry(vc, h, l, o, c));
-                        lc = c; vc++;
+                        Bar b = new Bar();
+                        b.o = (float) opens.getDouble(i); b.h = (float) highs.getDouble(i);
+                        b.l = (float) lows.getDouble(i);  b.c = (float) cls.getDouble(i);
+                        b.t = ts.getLong(i) * 1000L;
+                        b.v = vols != null && !vols.isNull(i) ? (float) vols.getDouble(i) : 0f;
+                        raw.add(b);
+                    }
+                    if (candleMinutes > 0 && candleMinutes != baseMinutes()) {
+                        long off = item.optJSONObject("meta") != null
+                                ? item.getJSONObject("meta").optLong("gmtoffset", 0) : 0;
+                        raw = aggregateBars(raw, candleMinutes, off);
+                    }
+                    for (Bar b : raw) {
+                        labels.add(sdf.format(new Date(b.t)));
+                        timestamps.add(b.t);
+                        closes.add(b.c);
+                        volumes.add(b.v);
+                        entries.add(new CandleEntry(vc, b.h, b.l, b.o, b.c));
+                        lc = b.c; vc++;
                     }
                     if (vc == 0) return;
                     YahooQuoteMath.Quote marketQuote = YahooQuoteMath.fromChartItem(item);
@@ -1709,13 +1828,17 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     }
 
     private String getBinanceInterval() {
-        return "1d";
+        if (candleMinutes == -1) return "1w";
+        if (candleMinutes <= 0) return "1d";
+        int base = baseMinutes();
+        return base == 60 ? "1h" : base + "m";
     }
 
     private void fetchCryptoData(String sym, String ignoredInterval, int requestGeneration) {
         String pair = sym.contains(":") ? sym.substring(sym.indexOf(':') + 1) : sym;
         String binanceInterval = getBinanceInterval();
         int limit = getCryptoCandleLimit(binanceInterval, visibleChartRange);
+        if ("1m".equals(binanceInterval) && limit > 1000) limit = 1000;
         String url = ApiConfig.BINANCE_KLINES + pair
                 + "&interval=" + binanceInterval + "&limit=" + limit;
 
@@ -1741,19 +1864,28 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                     String[] yahooP = getYahooParams();
                     SimpleDateFormat sdf = dateFormatFor(yahooP[0]);
                     float lc = 0f; int vc = 0;
+                    List<Bar> raw = new ArrayList<>();
                     for (int i = 0; i < arr.length(); i++) {
                         JSONArray bar = arr.getJSONArray(i);
-                        float o = (float) Double.parseDouble(bar.getString(1));
-                        float h = (float) Double.parseDouble(bar.getString(2));
-                        float l = (float) Double.parseDouble(bar.getString(3));
-                        float c = (float) Double.parseDouble(bar.getString(4));
-                        long  t = bar.getLong(0);
-                        labels.add(sdf.format(new Date(t)));
-                        timestamps.add(t);
-                        closes.add(c);
-                        volumes.add((float) Double.parseDouble(bar.getString(5)));
-                        entries.add(new CandleEntry(vc, h, l, o, c));
-                        lc = c; vc++;
+                        Bar b = new Bar();
+                        b.o = (float) Double.parseDouble(bar.getString(1));
+                        b.h = (float) Double.parseDouble(bar.getString(2));
+                        b.l = (float) Double.parseDouble(bar.getString(3));
+                        b.c = (float) Double.parseDouble(bar.getString(4));
+                        b.t = bar.getLong(0);
+                        b.v = (float) Double.parseDouble(bar.getString(5));
+                        raw.add(b);
+                    }
+                    if (candleMinutes > 0 && candleMinutes != baseMinutes()) {
+                        raw = aggregateBars(raw, candleMinutes, 0);
+                    }
+                    for (Bar b : raw) {
+                        labels.add(sdf.format(new Date(b.t)));
+                        timestamps.add(b.t);
+                        closes.add(b.c);
+                        volumes.add(b.v);
+                        entries.add(new CandleEntry(vc, b.h, b.l, b.o, b.c));
+                        lc = b.c; vc++;
                     }
                     if (vc == 0) return;
                     pendingVolumes = volumes;
