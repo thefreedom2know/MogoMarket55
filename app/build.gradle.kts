@@ -29,7 +29,7 @@ android {
         applicationId = "com.mogomarket.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 30
+        versionCode = 33
         versionName = "1.7.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
