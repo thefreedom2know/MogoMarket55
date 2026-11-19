@@ -162,6 +162,13 @@
         </LinearLayout>
 
         <Button
+            android:id="@+id/btnPositionSize"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="10dp"
+            android:text="🧮 Position size calculator" />
+
+        <Button
             android:id="@+id/btnAddStock"
             android:layout_width="match_parent"
             android:layout_height="52dp"

@@ -702,6 +702,22 @@ public class SimulatorFragment extends Fragment {
         box.addView(tilShares, lp(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 10));
 
+        MaterialButton calc = button("\uD83E\uDDEE Position size calculator", cChip, cText,
+                x -> {
+                    double p = referencePrice();
+                    PositionSizeDialog.show(requireContext(), tradeSymbol(), p, parse(etSl),
+                            parse(etTp), equity(), (shares, entry, stop, target) -> {
+                                setSide(true);
+                                etShares.setText(PaperEngine.fmtShares(shares).replace(",", ""));
+                                etAmount.setText("");
+                                etSl.setText(String.valueOf(stop));
+                                if (target > 0) etTp.setText(String.valueOf(target));
+                                if (!"MARKET".equals(orderType)) etPrice.setText(String.valueOf(entry));
+                            });
+                });
+        box.addView(calc, lp(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 10));
+
         LinearLayout pctRow = new LinearLayout(requireContext());
         pctRow.setOrientation(LinearLayout.HORIZONTAL);
         int[] pcts = {25, 50, 75, 100};

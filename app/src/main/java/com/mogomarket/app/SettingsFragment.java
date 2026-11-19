@@ -500,6 +500,7 @@ public class SettingsFragment extends Fragment {
         if (user == null) return;
 
         String uid = user.getUid();
+        SecureCredentials.clear(requireContext());
 
         ProgressDialog pd = new ProgressDialog(requireContext());
         pd.setTitle("Deleting Account");

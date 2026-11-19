@@ -95,11 +95,7 @@ public class AuthRegister extends AppCompatActivity {
                                     Toast.LENGTH_SHORT).show();
 
                             // שמירת פרטי התחברות לשימוש עתידי ב-Biometric (לשימוש לימודי, לא לפרודקשן)
-                            SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
-                            prefs.edit()
-                                    .putString("email", email)
-                                    .putString("password", pass)
-                                    .apply();
+                            SecureCredentials.save(AuthRegister.this, email, pass);
 
                             // מעבר לאפליקציית ההשקעות אחרי הרשמה מוצלחת
                             Intent intent = new Intent(AuthRegister.this, MainActivity.class);

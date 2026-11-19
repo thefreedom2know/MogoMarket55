@@ -65,6 +65,14 @@ public class PortfolioAddStockFragment extends Fragment {
     private AutoCompleteTextView editTicker;
     private Spinner spinnerStrategy;
     private Spinner spinnerSector;
+    private static double parseNumber(EditText et) {
+        try {
+            return Double.parseDouble(et.getText().toString().trim());
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private EditText editBuyPrice, editTargetPrice, editStopLoss, editTradeAmount,
             editShares, editEntryFees, editNotes;
     private Button btnAddStock;
@@ -118,6 +126,19 @@ public class PortfolioAddStockFragment extends Fragment {
         editEntryFees = v.findViewById(R.id.editEntryFees);
         editNotes       = v.findViewById(R.id.editNotes);
         btnAddStock     = v.findViewById(R.id.btnAddStock);
+        View btnSize = v.findViewById(R.id.btnPositionSize);
+        if (btnSize != null) {
+            btnSize.setOnClickListener(x -> PositionSizeDialog.show(requireContext(),
+                    editTicker.getText().toString().trim().toUpperCase(java.util.Locale.US),
+                    parseNumber(editBuyPrice), parseNumber(editStopLoss),
+                    parseNumber(editTargetPrice), 0,
+                    (shares, entry, stop, target) -> {
+                        editBuyPrice.setText(String.valueOf(entry));
+                        editStopLoss.setText(String.valueOf(stop));
+                        if (target > 0) editTargetPrice.setText(String.valueOf(target));
+                        editShares.setText(String.valueOf(shares));
+                    }));
+        }
         btnEntryScreenshot = v.findViewById(R.id.btnEntryScreenshot);
         btnOpenDate = v.findViewById(R.id.btnOpenDate);
         selectedOpenedAt = startOfToday();

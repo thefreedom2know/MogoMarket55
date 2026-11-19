@@ -159,23 +159,7 @@ public class AuthLogin extends AppCompatActivity {
 
         android.view.View btnBio = findViewById(R.id.btnBiometricLogin);
         if (btnBio != null) {
-            btnBio.setOnClickListener(v -> {
-                BiometricManager manager = BiometricManager.from(this);
-                int canAuth = manager.canAuthenticate(
-                        BiometricManager.Authenticators.BIOMETRIC_STRONG
-                                | BiometricManager.Authenticators.DEVICE_CREDENTIAL
-                );
-
-                Log.d(TAG, "Biometric canAuthenticate result: " + canAuth);
-
-                if (canAuth == BiometricManager.BIOMETRIC_SUCCESS) {
-                    biometricPrompt.authenticate(promptInfo);
-                } else {
-                    Toast.makeText(this,
-                            "Biometric authentication is not available on this device",
-                            Toast.LENGTH_SHORT).show();
-                }
-            });
+            btnBio.setOnClickListener(v -> startBiometricLogin());
         } else {
             Log.e(TAG, "btnBiometricLogin not found in layout");
         }
@@ -405,10 +389,7 @@ public class AuthLogin extends AppCompatActivity {
                         Log.d(TAG, "Email login success, uid=" +
                                 (user != null ? user.getUid() : "null"));
 
-                        getSharedPreferences("auth_prefs", MODE_PRIVATE).edit()
-                                .putString("email", email)
-                                .putString("password", pass)
-                                .apply();
+                        SecureCredentials.save(this, email, pass);
 
                         Toast.makeText(this, "User logged in successfully", Toast.LENGTH_SHORT).show();
                         startActivity(new Intent(AuthLogin.this, MainActivity.class));
@@ -436,6 +417,44 @@ public class AuthLogin extends AppCompatActivity {
                         }
                     }
                 });
+    }
+
+    /**
+     * BIOMETRIC_STRONG | DEVICE_CREDENTIAL is not supported before Android 11 (it made the
+     * fingerprint button fail on Android 10), so older versions use biometrics only.
+     */
+    private static int allowedAuthenticators() {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R
+                ? BiometricManager.Authenticators.BIOMETRIC_WEAK
+                        | BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                : BiometricManager.Authenticators.BIOMETRIC_WEAK;
+    }
+
+    private void startBiometricLogin() {
+        int canAuth = BiometricManager.from(this).canAuthenticate(allowedAuthenticators());
+        Log.d(TAG, "Biometric canAuthenticate result: " + canAuth);
+        if (canAuth == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) {
+            Toast.makeText(this, "No fingerprint is set up on this phone. "
+                    + "Add one in Settings > Security, then try again.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (canAuth == BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE) {
+            Toast.makeText(this, "This phone has no fingerprint / face sensor.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+            Toast.makeText(this, "Biometric authentication is not available right now.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!SecureCredentials.has(this) && GoogleSignIn.getLastSignedInAccount(this) == null) {
+            Toast.makeText(this, "Log in once with email and password (or Google) first - "
+                    + "after that the fingerprint button works.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        biometricPrompt.authenticate(promptInfo);
     }
 
     private void setupBiometricPrompt() {
@@ -473,28 +492,34 @@ public class AuthLogin extends AppCompatActivity {
                     }
                 });
 
-        promptInfo = new BiometricPrompt.PromptInfo.Builder()
+        BiometricPrompt.PromptInfo.Builder info = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Biometric login")
                 .setSubtitle("Confirm your identity to sign in")
-                .setAllowedAuthenticators(
-                        BiometricManager.Authenticators.BIOMETRIC_STRONG
-                                | BiometricManager.Authenticators.DEVICE_CREDENTIAL
-                )
-                .build();
+                .setAllowedAuthenticators(allowedAuthenticators());
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            info.setNegativeButtonText("Cancel"); // required when device credential is not allowed
+        }
+        promptInfo = info.build();
     }
 
     private void loginWithSavedCredentials() {
-        SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
-        String savedEmail = prefs.getString("email", null);
-        String savedPass = prefs.getString("password", null);
-
-        if (savedEmail == null || savedPass == null) {
-            Toast.makeText(this,
-                    "No saved credentials found. Please log in once with email and password",
-                    Toast.LENGTH_LONG).show();
-            Log.e(TAG, "No saved credentials for biometric login");
+        String[] saved = SecureCredentials.load(this);
+        if (saved == null) {
+            // Google users have no saved password: reuse the Google account on this phone
+            googleSignInClient.silentSignIn().addOnCompleteListener(this, t -> {
+                if (t.isSuccessful() && t.getResult() != null) {
+                    firebaseAuthWithGoogle(t.getResult().getIdToken());
+                } else {
+                    Toast.makeText(this,
+                            "No saved login found. Please log in once with email and password "
+                                    + "or Google",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
             return;
         }
+        String savedEmail = saved[0];
+        String savedPass = saved[1];
 
         ProgressDialog pd = new ProgressDialog(this);
         pd.setTitle("Connecting");
