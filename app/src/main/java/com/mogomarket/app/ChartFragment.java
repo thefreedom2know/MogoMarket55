@@ -252,6 +252,17 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private final List<Long> currentTimestamps = new ArrayList<>();
     private final List<Entry> movingAverageEntries = new ArrayList<>();
     private boolean showMa150;
+    private boolean indMa20, indMa50, indMa200, indBoll;
+    private int indPane; // 0 none, 1 RSI, 2 MACD
+    private CombinedChart indicatorChart;
+    private boolean paneShown;
+    private float lastSyncScale = Float.NaN, lastSyncTrans = Float.NaN;
+    private android.view.ViewTreeObserver.OnDrawListener syncListener;
+    private float crosshairPriceValue;
+    private int drawMode; // 0 none, 1 horizontal, 2 trend line, 3 Fibonacci
+    private boolean hasPendingPoint;
+    private long pendingT;
+    private float pendingP;
     private boolean showVolume;
     private boolean volumeColorByOpen; // false: vs previous close (daily), true: open to close
     private final List<Float> currentVolumes = new ArrayList<>();
@@ -372,6 +383,11 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 prefs.getString(KEY_DEFAULT_TIMEFRAME, "1Y"));
         visibleChartRange = TIMEFRAMES[currentTFIndex][3];
         candleMinutes = prefs.getInt("chart_candle_minutes", 0);
+        indMa20 = prefs.getBoolean("chart_ind_ma20", false);
+        indMa50 = prefs.getBoolean("chart_ind_ma50", false);
+        indMa200 = prefs.getBoolean("chart_ind_ma200", false);
+        indBoll = prefs.getBoolean("chart_ind_boll", false);
+        indPane = prefs.getInt("chart_ind_pane", 0);
 
         String mode = prefs.getString(KEY_SYMBOL_MODE, "last");
         if ("fixed".equals(mode)) {
@@ -406,6 +422,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         crosshairPrice     = v.findViewById(R.id.crosshairPrice);
         crosshairDate      = v.findViewById(R.id.crosshairDate);
         freeCrosshairOverlay = v.findViewById(R.id.freeCrosshairOverlay);
+        indicatorChart = v.findViewById(R.id.indicator_chart);
+        if (crosshairInfoBar != null) {
+            crosshairInfoBar.setOnClickListener(x -> showChartAlertDialog(crosshairPriceValue));
+        }
 
         if (btnSettings != null) {
             btnSettings.setOnClickListener(vv -> {
@@ -438,6 +458,15 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         setupLineChartStyle();
         setupClickListeners();
         setupChartGestures();
+        setupIndicatorChartStyle();
+        v.post(() -> {
+            if (candleStickChart == null) return;
+            android.view.ViewTreeObserver vto = candleStickChart.getViewTreeObserver();
+            if (vto.isAlive() && syncListener == null) {
+                syncListener = this::syncIndicatorViewport;
+                vto.addOnDrawListener(syncListener);
+            }
+        });
 
         interval = TIMEFRAMES[currentTFIndex][1];
 
@@ -724,8 +753,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         if (crosshairInfoBar == null) return;
         isCrosshairActive = true;
 
+        crosshairPriceValue = price;
         if (crosshairPrice != null) {
-            crosshairPrice.setText("$" + formatPrice(price, symbol));
+            crosshairPrice.setText("$" + formatPrice(price, symbol) + "  \uD83D\uDD14");
         }
 
         if (crosshairDate != null) {
@@ -759,6 +789,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 if (isFullscreen) exitFullscreen(); else enterFullscreen();
             }
             @Override public void onChartSingleTapped(MotionEvent me) {
+                if (drawMode != 0) { handleDrawTap(me); return; }
                 if (isCrosshairActive) hideCrosshairInfo();
             }
             @Override public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {}
@@ -1225,6 +1256,14 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 (Runnable) this::showVisibleRangeDialog});
         tiles.add(new Object[]{"\u25A5", "Candle size", candleLabelShort(),
                 candleMinutes != 0, (Runnable) this::showCandleSizeDialog});
+        tiles.add(new Object[]{"\u2248", "Indicators", indicatorSummary(),
+                !"None".equals(indicatorSummary()), (Runnable) this::showIndicatorsDialog});
+        tiles.add(new Object[]{"\u270E", "Drawing tools", drawingsSummary(), drawMode != 0,
+                (Runnable) this::showDrawingDialog});
+        tiles.add(new Object[]{"\uD83D\uDD14", "Price alert",
+                isCrosshairActive ? "At crosshair" : "Set alert", false,
+                (Runnable) () -> showChartAlertDialog(
+                        isCrosshairActive ? crosshairPriceValue : lastPrice)});
         tiles.add(new Object[]{"150", "150-day MA", showMa150 ? "On" : "Off", showMa150,
                 (Runnable) this::toggleMa150});
         tiles.add(new Object[]{"\u25AE", "Volume", showVolume ? "On" : "Off", showVolume,
@@ -1349,6 +1388,588 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             context.append(fullCloses.get(i));
         }
         return context.toString();
+    }
+
+    // ---------------------------------------------------------------------------------
+    // Indicators, drawing tools and chart price alerts
+    // ---------------------------------------------------------------------------------
+
+    private static final class Drawing {
+        int type;           // 1 = horizontal line, 2 = trend line, 3 = Fibonacci
+        long t1, t2;
+        float p1, p2;
+    }
+
+    private static final String DRAWINGS_PREFS = "chart_drawings";
+
+    private List<Drawing> loadDrawings() {
+        List<Drawing> out = new ArrayList<>();
+        if (getContext() == null) return out;
+        String raw = requireContext().getSharedPreferences(DRAWINGS_PREFS, Context.MODE_PRIVATE)
+                .getString(symbol, "[]");
+        try {
+            JSONArray arr = new JSONArray(raw);
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                Drawing d = new Drawing();
+                d.type = o.getInt("type");
+                d.t1 = o.getLong("t1");
+                d.t2 = o.getLong("t2");
+                d.p1 = (float) o.getDouble("p1");
+                d.p2 = (float) o.getDouble("p2");
+                out.add(d);
+            }
+        } catch (Exception e) {
+            Log.w("ChartFragment", "Bad drawings data", e);
+        }
+        return out;
+    }
+
+    private void saveDrawings(List<Drawing> list) {
+        if (getContext() == null) return;
+        JSONArray arr = new JSONArray();
+        try {
+            for (Drawing d : list) {
+                JSONObject o = new JSONObject();
+                o.put("type", d.type);
+                o.put("t1", d.t1);
+                o.put("t2", d.t2);
+                o.put("p1", d.p1);
+                o.put("p2", d.p2);
+                arr.put(o);
+            }
+        } catch (Exception e) {
+            return;
+        }
+        requireContext().getSharedPreferences(DRAWINGS_PREFS, Context.MODE_PRIVATE)
+                .edit().putString(symbol, arr.toString()).apply();
+    }
+
+    private int timeToIndex(long t) {
+        int n = currentTimestamps.size();
+        if (n == 0) return -1;
+        long first = currentTimestamps.get(0);
+        long last = currentTimestamps.get(n - 1);
+        long span = n > 1 ? Math.max(1, (last - first) / (n - 1)) : 86_400_000L;
+        if (t < first - span || t > last + span) return -1;
+        int lo = 0, hi = n - 1;
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            if (currentTimestamps.get(mid) < t) lo = mid + 1; else hi = mid;
+        }
+        if (lo > 0 && Math.abs(currentTimestamps.get(lo - 1) - t) < Math.abs(currentTimestamps.get(lo) - t)) {
+            lo--;
+        }
+        return lo;
+    }
+
+    private float[] closesOf(List<CandleEntry> entries) {
+        float[] c = new float[entries.size()];
+        for (int i = 0; i < c.length; i++) c[i] = entries.get(i).getClose();
+        return c;
+    }
+
+    private LineDataSet lineSet(float[] v, String label, int color) {
+        List<Entry> pts = new ArrayList<>();
+        for (int i = 0; i < v.length; i++) {
+            if (!Float.isNaN(v[i])) pts.add(new Entry(i, v[i]));
+        }
+        if (pts.isEmpty()) return null;
+        LineDataSet ds = new LineDataSet(pts, label);
+        ds.setColor(color);
+        ds.setLineWidth(1.4f);
+        ds.setDrawCircles(false);
+        ds.setDrawValues(false);
+        ds.setHighlightEnabled(false);
+        return ds;
+    }
+
+    /** Indicator overlays (moving averages, Bollinger) and trend lines as extra line series. */
+    private List<LineDataSet> buildOverlaySets(List<CandleEntry> entries) {
+        List<LineDataSet> out = new ArrayList<>();
+        if (entries == null || entries.isEmpty()) return out;
+        float[] c = closesOf(entries);
+        LineDataSet ds;
+        if (indMa20 && (ds = lineSet(Indicators.sma(c, 20), "MA 20", 0xFF4FC3F7)) != null) out.add(ds);
+        if (indMa50 && (ds = lineSet(Indicators.sma(c, 50), "MA 50", 0xFFBA68C8)) != null) out.add(ds);
+        if (indMa200 && (ds = lineSet(Indicators.sma(c, 200), "MA 200", 0xFFF06292)) != null) out.add(ds);
+        if (indBoll) {
+            float[][] b = Indicators.bollinger(c, 20, 2.0);
+            if ((ds = lineSet(b[1], "Bollinger 20,2", 0xFF90A4AE)) != null) out.add(ds);
+            if ((ds = lineSet(b[2], "", 0xFF90A4AE)) != null) out.add(ds);
+            if ((ds = lineSet(b[0], "", 0x9990A4AE)) != null) {
+                ds.enableDashedLine(8f, 6f, 0f);
+                out.add(ds);
+            }
+        }
+        int n = entries.size();
+        for (Drawing d : loadDrawings()) {
+            if (d.type != 2) continue;
+            int i1 = timeToIndex(d.t1), i2 = timeToIndex(d.t2);
+            if (i1 < 0 || i2 < 0 || i1 == i2) continue;
+            float pa = d.p1, pb = d.p2;
+            int ia = i1, ib = i2;
+            if (ia > ib) { ia = i2; ib = i1; pa = d.p2; pb = d.p1; }
+            float slope = (pb - pa) / (ib - ia);
+            List<Entry> pts = new ArrayList<>();
+            pts.add(new Entry(ia, pa));
+            pts.add(new Entry(n - 1, pa + slope * (n - 1 - ia)));
+            LineDataSet t = new LineDataSet(pts, "");
+            t.setColor(0xFFFFD54F);
+            t.setLineWidth(1.8f);
+            t.setDrawCircles(false);
+            t.setDrawValues(false);
+            t.setHighlightEnabled(false);
+            out.add(t);
+        }
+        return out;
+    }
+
+    private void addLimit(YAxis axis, float price, String label, int color, float width) {
+        com.github.mikephil.charting.components.LimitLine ll =
+                new com.github.mikephil.charting.components.LimitLine(price, label);
+        ll.setLineColor(color);
+        ll.setLineWidth(width);
+        ll.setTextColor(color);
+        ll.setTextSize(9f);
+        ll.setLabelPosition(com.github.mikephil.charting.components.LimitLine.LimitLabelPosition.RIGHT_TOP);
+        axis.addLimitLine(ll);
+    }
+
+    /** Horizontal lines and Fibonacci levels, legend and the lower indicator pane. */
+    private void applyOverlayExtras(com.github.mikephil.charting.charts.BarLineChartBase<?> chart,
+                                    List<CandleEntry> entries) {
+        YAxis left = chart.getAxisLeft();
+        left.removeAllLimitLines();
+        left.setDrawLimitLinesBehindData(true);
+        float[] fibLevels = {0f, 0.236f, 0.382f, 0.5f, 0.618f, 0.786f, 1f};
+        for (Drawing d : loadDrawings()) {
+            if (d.type == 1) {
+                addLimit(left, d.p1, formatPrice(d.p1, symbol), 0xFFFFD54F, 1.2f);
+            } else if (d.type == 3) {
+                float hi = Math.max(d.p1, d.p2), lo = Math.min(d.p1, d.p2);
+                for (float r : fibLevels) {
+                    float price = hi - (hi - lo) * r;
+                    addLimit(left, price, String.format(Locale.US, "%.1f%%  %s", r * 100f,
+                            formatPrice(price, symbol)), 0xFFFFA726, 0.9f);
+                }
+            }
+        }
+        // legend: every named line series
+        List<com.github.mikephil.charting.components.LegendEntry> items = new ArrayList<>();
+        if (chart.getData() != null) {
+            com.github.mikephil.charting.data.ChartData<?> cd = chart.getData();
+            for (Object o : cd.getDataSets()) {
+                if (!(o instanceof LineDataSet)) continue;
+                LineDataSet s = (LineDataSet) o;
+                if (s.getLabel() != null && !s.getLabel().isEmpty()
+                        && !"Price".equals(s.getLabel())) {
+                    items.add(new com.github.mikephil.charting.components.LegendEntry(s.getLabel(),
+                            com.github.mikephil.charting.components.Legend.LegendForm.LINE,
+                            10f, 2f, null, s.getColor()));
+                }
+            }
+        }
+        com.github.mikephil.charting.components.Legend legend = chart.getLegend();
+        if (items.isEmpty()) {
+            legend.setEnabled(false);
+        } else {
+            legend.setEnabled(true);
+            legend.setCustom(items);
+            legend.setTextColor(isChartDark ? DARK_TEXT_SEC : LIGHT_TEXT_SEC);
+            legend.setTextSize(10f);
+            legend.setWordWrapEnabled(true);
+        }
+        updateIndicatorPane(entries);
+    }
+
+    private void setupIndicatorChartStyle() {
+        if (indicatorChart == null) return;
+        indicatorChart.setTouchEnabled(false);
+        indicatorChart.getDescription().setEnabled(false);
+        indicatorChart.setDrawGridBackground(false);
+        indicatorChart.getAxisRight().setEnabled(false);
+        XAxis x = indicatorChart.getXAxis();
+        x.setDrawLabels(false);
+        x.setDrawGridLines(false);
+        x.setDrawAxisLine(false);
+        YAxis l = indicatorChart.getAxisLeft();
+        l.setDrawGridLines(false);
+        l.setDrawAxisLine(false);
+        l.setTextSize(9f);
+        l.setDrawLimitLinesBehindData(true);
+        com.github.mikephil.charting.components.Legend lg = indicatorChart.getLegend();
+        lg.setVerticalAlignment(com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.TOP);
+        lg.setHorizontalAlignment(com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.LEFT);
+        lg.setOrientation(com.github.mikephil.charting.components.Legend.LegendOrientation.HORIZONTAL);
+        lg.setDrawInside(true);
+        lg.setTextSize(10f);
+    }
+
+    private void setIndicatorPaneVisible(boolean on) {
+        if (indicatorChart == null || on == paneShown) return;
+        paneShown = on;
+        int bottom = on ? dpToPx(118) : dpToPx(4);
+        for (View chart : new View[]{candleStickChart, lineChart}) {
+            if (chart == null) continue;
+            ViewGroup.LayoutParams lp = chart.getLayoutParams();
+            if (lp instanceof ViewGroup.MarginLayoutParams) {
+                ((ViewGroup.MarginLayoutParams) lp).bottomMargin = bottom;
+                chart.setLayoutParams(lp);
+            }
+        }
+        indicatorChart.setVisibility(on ? View.VISIBLE : View.GONE);
+        float l = dpToPx(48), r = dpToPx(8);
+        if (on) {
+            if (candleStickChart != null) candleStickChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
+            if (lineChart != null) lineChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
+            indicatorChart.setViewPortOffsets(l, dpToPx(14), r, dpToPx(4));
+        } else {
+            if (candleStickChart != null) candleStickChart.resetViewPortOffsets();
+            if (lineChart != null) lineChart.resetViewPortOffsets();
+        }
+        lastSyncScale = Float.NaN;
+    }
+
+    private void updateIndicatorPane(List<CandleEntry> entries) {
+        if (indicatorChart == null) return;
+        boolean on = indPane != 0 && entries != null && entries.size() >= 5;
+        if (!on) {
+            setIndicatorPaneVisible(false);
+            return;
+        }
+        int n = entries.size();
+        float[] c = closesOf(entries);
+        int textSec = isChartDark ? DARK_TEXT_SEC : LIGHT_TEXT_SEC;
+        CombinedData data = new CombinedData();
+        YAxis left = indicatorChart.getAxisLeft();
+        left.removeAllLimitLines();
+        left.setTextColor(textSec);
+        List<com.github.mikephil.charting.components.LegendEntry> legend = new ArrayList<>();
+        com.github.mikephil.charting.components.Legend.LegendForm line =
+                com.github.mikephil.charting.components.Legend.LegendForm.LINE;
+        if (indPane == 1) {
+            LineDataSet ds = lineSet(Indicators.rsi(c, 14), "RSI 14", 0xFFAB47BC);
+            if (ds == null) { setIndicatorPaneVisible(false); return; }
+            ds.setLineWidth(1.6f);
+            data.setData(new LineData(ds));
+            left.setAxisMinimum(0f);
+            left.setAxisMaximum(100f);
+            left.setLabelCount(3, true);
+            addLimit(left, 30f, "", 0x66FFFFFF, 0.8f);
+            addLimit(left, 70f, "", 0x66FFFFFF, 0.8f);
+            legend.add(new com.github.mikephil.charting.components.LegendEntry("RSI 14", line,
+                    10f, 2f, null, 0xFFAB47BC));
+        } else {
+            float[][] m = Indicators.macd(c, 12, 26, 9);
+            LineData ld = new LineData();
+            LineDataSet macdSet = lineSet(m[0], "MACD", 0xFF29B6F6);
+            LineDataSet sigSet = lineSet(m[1], "Signal", 0xFFFFA726);
+            if (macdSet != null) ld.addDataSet(macdSet);
+            if (sigSet != null) ld.addDataSet(sigSet);
+            List<BarEntry> bars = new ArrayList<>();
+            List<Integer> colors = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                if (Float.isNaN(m[2][i])) continue;
+                bars.add(new BarEntry(i, m[2][i]));
+                colors.add(((m[2][i] >= 0 ? COLOR_GAIN : COLOR_LOSS) & 0x00FFFFFF) | 0x99000000);
+            }
+            if (ld.getDataSetCount() == 0 && bars.isEmpty()) {
+                setIndicatorPaneVisible(false);
+                return;
+            }
+            if (ld.getDataSetCount() > 0) data.setData(ld);
+            if (!bars.isEmpty()) {
+                BarDataSet bs = new BarDataSet(bars, "");
+                bs.setColors(colors);
+                bs.setDrawValues(false);
+                bs.setHighlightEnabled(false);
+                BarData bd = new BarData(bs);
+                bd.setBarWidth(0.8f);
+                data.setData(bd);
+            }
+            left.resetAxisMinimum();
+            left.resetAxisMaximum();
+            left.setLabelCount(3, false);
+            addLimit(left, 0f, "", 0x66FFFFFF, 0.8f);
+            legend.add(new com.github.mikephil.charting.components.LegendEntry("MACD 12,26,9", line,
+                    10f, 2f, null, 0xFF29B6F6));
+            legend.add(new com.github.mikephil.charting.components.LegendEntry("Signal", line,
+                    10f, 2f, null, 0xFFFFA726));
+        }
+        setIndicatorPaneVisible(true);
+        indicatorChart.getXAxis().setAxisMinimum(-0.5f);
+        indicatorChart.getXAxis().setAxisMaximum(n - 0.5f);
+        indicatorChart.setData(data);
+        com.github.mikephil.charting.components.Legend lg = indicatorChart.getLegend();
+        lg.setEnabled(true);
+        lg.setCustom(legend);
+        lg.setTextColor(textSec);
+        lastSyncScale = Float.NaN;
+        indicatorChart.invalidate();
+    }
+
+    /** Keeps the lower pane zoomed/scrolled exactly like the price chart above it. */
+    private void syncIndicatorViewport() {
+        if (indicatorChart == null || !paneShown || indicatorChart.getData() == null) return;
+        com.github.mikephil.charting.charts.BarLineChartBase<?> src =
+                lineChart != null && lineChart.getVisibility() == View.VISIBLE
+                        ? lineChart : candleStickChart;
+        if (src == null) return;
+        android.graphics.Matrix touch = src.getViewPortHandler().getMatrixTouch();
+        float[] v = new float[9];
+        touch.getValues(v);
+        float sx = v[android.graphics.Matrix.MSCALE_X];
+        float tx = v[android.graphics.Matrix.MTRANS_X];
+        if (sx == lastSyncScale && tx == lastSyncTrans) return;
+        lastSyncScale = sx;
+        lastSyncTrans = tx;
+        v[android.graphics.Matrix.MSCALE_Y] = 1f;
+        v[android.graphics.Matrix.MTRANS_Y] = 0f;
+        android.graphics.Matrix copy = new android.graphics.Matrix();
+        copy.setValues(v);
+        indicatorChart.getViewPortHandler().refresh(copy, indicatorChart, true);
+    }
+
+    private void refreshCurrentChart() {
+        if (currentEntries.isEmpty()) return;
+        if (isCandleStick) updateCandleChart(currentEntries);
+        else updateLineChart(currentEntries);
+    }
+
+    private String indicatorSummary() {
+        int n = (indMa20 ? 1 : 0) + (indMa50 ? 1 : 0) + (indMa200 ? 1 : 0) + (indBoll ? 1 : 0)
+                + (indPane != 0 ? 1 : 0);
+        return n == 0 ? "None" : n + " on";
+    }
+
+    private void showIndicatorsDialog() {
+        String[] items = {"MA 20", "MA 50", "MA 200", "Bollinger Bands (20, 2)",
+                "RSI (14) - lower pane", "MACD (12, 26, 9) - lower pane"};
+        boolean[] checked = {indMa20, indMa50, indMa200, indBoll, indPane == 1, indPane == 2};
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Indicators")
+                .setMultiChoiceItems(items, checked, (dlg, which, isChecked) -> {
+                    checked[which] = isChecked;
+                    if (isChecked && (which == 4 || which == 5)) {
+                        int other = which == 4 ? 5 : 4;
+                        checked[other] = false;
+                        ((AlertDialog) dlg).getListView().setItemChecked(other, false);
+                    }
+                })
+                .setPositiveButton("Apply", (dlg, w) -> {
+                    indMa20 = checked[0];
+                    indMa50 = checked[1];
+                    indMa200 = checked[2];
+                    indBoll = checked[3];
+                    indPane = checked[4] ? 1 : (checked[5] ? 2 : 0);
+                    requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                            .putBoolean("chart_ind_ma20", indMa20)
+                            .putBoolean("chart_ind_ma50", indMa50)
+                            .putBoolean("chart_ind_ma200", indMa200)
+                            .putBoolean("chart_ind_boll", indBoll)
+                            .putInt("chart_ind_pane", indPane).apply();
+                    refreshCurrentChart();
+                    if ((indMa50 || indMa200) && currentEntries.size() < 60) {
+                        Toast.makeText(requireContext(), "Long averages need more candles - "
+                                + "pick a longer visible range or smaller candles",
+                                Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    // ---- drawing tools ----
+
+    private String drawingsSummary() {
+        int n = loadDrawings().size();
+        return drawMode != 0 ? "Tap chart..." : (n == 0 ? "None" : n + " saved");
+    }
+
+    private void showDrawingDialog() {
+        List<String> items = new ArrayList<>();
+        items.add("Horizontal line (support / resistance)");
+        items.add("Trend line (2 points)");
+        items.add("Fibonacci retracement (2 points)");
+        items.add("Manage / delete drawings");
+        if (drawMode != 0) items.add("Cancel current drawing");
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Drawing tools")
+                .setItems(items.toArray(new String[0]), (dlg, which) -> {
+                    switch (which) {
+                        case 0: startDraw(1); break;
+                        case 1: startDraw(2); break;
+                        case 2: startDraw(3); break;
+                        case 3: showManageDrawings(); break;
+                        default: drawMode = 0; hasPendingPoint = false; break;
+                    }
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void startDraw(int mode) {
+        if (currentEntries.isEmpty()) return;
+        drawMode = mode;
+        hasPendingPoint = false;
+        hideCrosshairInfo();
+        Toast.makeText(requireContext(), mode == 1
+                ? "Tap the chart where the line should go"
+                : "Tap the chart to place the first point", Toast.LENGTH_LONG).show();
+    }
+
+    private void handleDrawTap(MotionEvent me) {
+        com.github.mikephil.charting.charts.BarLineChartBase<?> chart =
+                lineChart != null && lineChart.getVisibility() == View.VISIBLE ? lineChart
+                        : candleStickChart;
+        if (chart == null || currentTimestamps.isEmpty()) return;
+        com.github.mikephil.charting.utils.MPPointD v = chart.getTransformer(
+                YAxis.AxisDependency.LEFT).getValuesByTouchPoint(me.getX(), me.getY());
+        int idx = Math.max(0, Math.min((int) Math.round(v.x), currentTimestamps.size() - 1));
+        float price = (float) v.y;
+        com.github.mikephil.charting.utils.MPPointD.recycleInstance(v);
+        long t = currentTimestamps.get(idx);
+        if (drawMode == 1) {
+            addDrawing(1, t, price, t, price);
+            return;
+        }
+        if (!hasPendingPoint) {
+            hasPendingPoint = true;
+            pendingT = t;
+            pendingP = price;
+            Toast.makeText(requireContext(), "Now tap the second point", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        addDrawing(drawMode, pendingT, pendingP, t, price);
+    }
+
+    private void addDrawing(int type, long t1, float p1, long t2, float p2) {
+        List<Drawing> list = loadDrawings();
+        Drawing d = new Drawing();
+        d.type = type; d.t1 = t1; d.p1 = p1; d.t2 = t2; d.p2 = p2;
+        list.add(d);
+        saveDrawings(list);
+        drawMode = 0;
+        hasPendingPoint = false;
+        refreshCurrentChart();
+        Toast.makeText(requireContext(), "Drawing saved for " + cleanDisplaySymbol(symbol),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void showManageDrawings() {
+        List<Drawing> list = loadDrawings();
+        if (list.isEmpty()) {
+            Toast.makeText(requireContext(), "No drawings on this symbol yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        List<String> items = new ArrayList<>();
+        items.add("Delete ALL drawings");
+        for (Drawing d : list) {
+            String what = d.type == 1 ? "Horizontal line @ " + formatPrice(d.p1, symbol)
+                    : d.type == 2 ? "Trend line " + formatPrice(d.p1, symbol) + " \u2192 "
+                            + formatPrice(d.p2, symbol)
+                    : "Fibonacci " + formatPrice(d.p1, symbol) + " \u2192 " + formatPrice(d.p2, symbol);
+            items.add("Delete: " + what);
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Drawings - " + cleanDisplaySymbol(symbol))
+                .setItems(items.toArray(new String[0]), (dlg, which) -> {
+                    if (which == 0) list.clear(); else list.remove(which - 1);
+                    saveDrawings(list);
+                    refreshCurrentChart();
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    // ---- price alert from the chart ----
+
+    private void showChartAlertDialog(float price) {
+        if (!isAdded() || getContext() == null) return;
+        com.google.firebase.auth.FirebaseUser user =
+                com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(requireContext(), "Sign in to set price alerts", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setHint("Target price");
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
+                | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        if (price > 0f) input.setText(String.format(Locale.US, "%.4f", price).replaceAll("0+$", "")
+                .replaceAll("\\.$", ""));
+        final android.widget.RadioButton above = new android.widget.RadioButton(requireContext());
+        above.setText("Alert when the price rises to or above");
+        final android.widget.RadioButton below = new android.widget.RadioButton(requireContext());
+        below.setText("Alert when the price falls to or below");
+        android.widget.RadioGroup group = new android.widget.RadioGroup(requireContext());
+        above.setId(View.generateViewId());
+        below.setId(View.generateViewId());
+        group.addView(above);
+        group.addView(below);
+        if (price > 0f && lastPrice > 0f && price < lastPrice) below.setChecked(true);
+        else above.setChecked(true);
+        LinearLayout box = new LinearLayout(requireContext());
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = dpToPx(20);
+        box.setPadding(pad, pad / 2, pad, 0);
+        box.addView(input);
+        box.addView(group);
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Price alert - " + cleanDisplaySymbol(symbol))
+                .setView(box)
+                .setPositiveButton("Set alert", (dlg, w) -> {
+                    float target;
+                    try {
+                        target = Float.parseFloat(input.getText().toString().trim());
+                    } catch (NumberFormatException e) {
+                        target = 0f;
+                    }
+                    if (!Float.isFinite(target) || target <= 0f) {
+                        Toast.makeText(requireContext(), "Enter a price greater than 0",
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Map<String, Object> update = new HashMap<>();
+                    update.put("symbol", symbol);
+                    update.put("alertTargetPrice", target);
+                    update.put("alertDirection", below.isChecked() ? "BELOW" : "ABOVE");
+                    update.put("alertEnabled", true);
+                    update.put("alertTriggered", false);
+                    com.google.firebase.database.FirebaseDatabase.getInstance()
+                            .getReference("users").child(user.getUid())
+                            .child("watchlist-stocks").child(symbol.replace(":", "_"))
+                            .updateChildren(update)
+                            .addOnSuccessListener(unused -> {
+                                if (!isAdded()) return;
+                                SharedPreferences prefs = requireContext()
+                                        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                                if (!prefs.getBoolean(PriceAlertScheduler.KEY_ENABLED, false)) {
+                                    prefs.edit().putBoolean(PriceAlertScheduler.KEY_ENABLED, true).apply();
+                                    PriceAlertScheduler.schedule(requireContext());
+                                }
+                                Toast.makeText(requireContext(), "Alert set (the stock is also on your watchlist)",
+                                        Toast.LENGTH_LONG).show();
+                            })
+                            .addOnFailureListener(e -> {
+                                if (isAdded()) Toast.makeText(requireContext(),
+                                        "Could not save alert: " + e.getMessage(),
+                                        Toast.LENGTH_LONG).show();
+                            });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (candleStickChart != null && syncListener != null) {
+            android.view.ViewTreeObserver vto = candleStickChart.getViewTreeObserver();
+            if (vto.isAlive()) vto.removeOnDrawListener(syncListener);
+        }
+        syncListener = null;
+        super.onDestroyView();
     }
 
     private String candleLabelShort() {
@@ -1636,9 +2257,14 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         CandleData candleData = new CandleData(dataSet);
         CombinedData combinedData = new CombinedData();
         combinedData.setData(candleData);
-        if (!movingAverageEntries.isEmpty()) {
-            LineDataSet averageSet = createMovingAverageDataSet();
-            combinedData.setData(new LineData(averageSet));
+        List<LineDataSet> lineSets = new ArrayList<>();
+        if (!movingAverageEntries.isEmpty()) lineSets.add(createMovingAverageDataSet());
+        lineSets.addAll(buildOverlaySets(entries));
+        boolean hasLines = !lineSets.isEmpty();
+        if (hasLines) {
+            LineData overlayData = new LineData();
+            for (LineDataSet s : lineSets) overlayData.addDataSet(s);
+            combinedData.setData(overlayData);
         }
         // The volume series is always part of the data and only hidden when switched off,
         // so toggling it never changes the chart's structure (renderers / draw order).
@@ -1668,12 +2294,11 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         com.github.mikephil.charting.components.YAxis right = candleStickChart.getAxisRight();
         right.setAxisMinimum(0f);
         right.setAxisMaximum(maxVolume > 0f ? maxVolume * 4.5f : 1f); // bars use the bottom ~22%
-        candleStickChart.setDrawOrder(movingAverageEntries.isEmpty()
+        candleStickChart.setDrawOrder(!hasLines
                 ? new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE}
                 : new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE});
         candleStickChart.setData(combinedData);
-        candleStickChart.getLegend().setEnabled(showMa150 && !movingAverageEntries.isEmpty());
-        candleStickChart.getLegend().setEnabled(showMa150 && !movingAverageEntries.isEmpty());
+        applyOverlayExtras(candleStickChart, entries);
         attachMarker(candleStickChart);
         candleStickChart.animateX(400);
         candleStickChart.invalidate();
@@ -1699,8 +2324,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         if (!movingAverageEntries.isEmpty()) {
             lineData.addDataSet(createMovingAverageDataSet());
         }
+        for (LineDataSet o : buildOverlaySets(candleEntries)) lineData.addDataSet(o);
         lineChart.setData(lineData);
-        lineChart.getLegend().setEnabled(showMa150 && !movingAverageEntries.isEmpty());
+        applyOverlayExtras(lineChart, candleEntries);
         attachMarker(lineChart);
         lineChart.animateX(400);
         lineChart.invalidate();
