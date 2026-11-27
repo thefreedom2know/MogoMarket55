@@ -157,7 +157,7 @@ public class AiChatDialog {
             if (q.isEmpty() || busy[0]) return;
             if (!LLMService.isConfigured()) {
                 messages.addView(bubble(context, dp, false,
-                        "לא הוגדר מפתח AI. הוסף GROQ_API_KEY ל-local.properties ובנה מחדש."));
+                        "צריך להתחבר לחשבון כדי להשתמש בעוזר ה-AI."));
                 scrollDown.run();
                 return;
             }

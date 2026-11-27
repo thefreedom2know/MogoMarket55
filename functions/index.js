@@ -5,6 +5,7 @@
  *
  *  - aiChat           : Groq first, Gemini as a fallback (same behaviour as the app's local mode)
  *  - sendSummaryEmail : sends the daily summary through Gmail SMTP
+ *  - finnhub          : read-only proxy for Finnhub quotes, symbol search and company profiles
  *
  * Both require a logged-in user and are rate limited per user.
  * Secrets are stored with `firebase functions:secrets:set` (see README.md).
@@ -21,6 +22,7 @@ const GROQ_API_KEY = defineSecret("GROQ_API_KEY");
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const SMTP_EMAIL = defineSecret("SMTP_EMAIL");
 const SMTP_PASSWORD = defineSecret("SMTP_PASSWORD");
+const FINNHUB_KEY = defineSecret("FINNHUB_KEY");
 
 const GROQ_MODELS = [
   "openai/gpt-oss-120b",
@@ -175,5 +177,68 @@ exports.sendSummaryEmail = onCall(
       throw new HttpsError("internal", "Sending failed: " + String(e.message || e));
     }
     return { ok: true };
+  }
+);
+
+// ---- Finnhub proxy ------------------------------------------------------------------------
+
+/** Allowed Finnhub paths, the query parameters each one accepts, and how long to cache it. */
+const FINNHUB_PATHS = {
+  "/api/v1/quote": { params: ["symbol"], cacheMs: 15 * 1000 },
+  "/api/v1/search": { params: ["q", "exchange"], cacheMs: 60 * 60 * 1000 },
+  "/api/v1/stock/profile2": { params: ["symbol", "isin", "cusip"], cacheMs: 24 * 60 * 60 * 1000 },
+};
+
+// Per-instance cache and per-user minute counter. They are kept in memory (not the database)
+// because quotes are requested often; with few instances this is close enough.
+const finnhubCache = new Map();
+const finnhubCalls = new Map();
+
+function finnhubMemoryLimit(uid, max) {
+  const now = Date.now();
+  let state = finnhubCalls.get(uid);
+  if (!state || now - state.start > 60 * 1000) state = { start: now, n: 0 };
+  state.n += 1;
+  finnhubCalls.set(uid, state);
+  if (state.n > max) {
+    throw new HttpsError("resource-exhausted", "Too many quote requests, please wait a minute.");
+  }
+}
+
+exports.finnhub = onCall(
+  { secrets: [FINNHUB_KEY], maxInstances: 10, timeoutSeconds: 20 },
+  async (request) => {
+    const uid = requireAuth(request);
+    const data = request.data || {};
+    const path = String(data.path || "");
+    const spec = FINNHUB_PATHS[path];
+    if (!spec) throw new HttpsError("invalid-argument", "This Finnhub request is not allowed.");
+
+    const query = new URLSearchParams();
+    const given = data.params && typeof data.params === "object" ? data.params : {};
+    for (const name of spec.params) {
+      if (given[name] !== undefined && given[name] !== null) {
+        query.set(name, String(given[name]).slice(0, 100));
+      }
+    }
+    const cacheKey = path + "?" + query.toString();
+    const cached = finnhubCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < spec.cacheMs) {
+      return { status: cached.status, body: cached.body };
+    }
+
+    finnhubMemoryLimit(uid, 120);
+
+    const key = FINNHUB_KEY.value();
+    if (!key) throw new HttpsError("failed-precondition", "No Finnhub key is configured on the server.");
+    query.set("token", key);
+    const res = await fetch(`https://finnhub.io${path}?${query.toString()}`);
+    const body = await res.text();
+    if (res.ok) {
+      if (finnhubCache.size > 5000) finnhubCache.clear();
+      finnhubCache.set(cacheKey, { at: Date.now(), status: res.status, body });
+    }
+    // Never echo the upstream body on errors: it can mention the key.
+    return res.ok ? { status: res.status, body } : { status: res.status, body: "{}" };
   }
 );

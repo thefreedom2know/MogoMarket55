@@ -28,14 +28,6 @@
     public <fields>;
 }
 
-# JavaMail loads provider implementations from provider metadata.
--keep class javax.mail.** { *; }
--keep class com.sun.mail.** { *; }
--dontwarn javax.mail.**
--dontwarn com.sun.mail.**
--dontwarn javax.activation.**
--dontwarn com.sun.activation.**
-
 # Navigation XML resolves fragment classes by name and instantiates them reflectively.
 -keep,allowoptimization class * extends androidx.fragment.app.Fragment {
     public <init>();

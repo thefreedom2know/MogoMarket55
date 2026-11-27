@@ -83,7 +83,7 @@ public class PortfolioAddStockFragment extends Fragment {
     private DatabaseReference userRef;
     private DatabaseReference stocksRef;
 
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client = FinnhubProxy.client();
 
     private ArrayAdapter<ChartFragment.StockSuggestion> suggestionAdapter;
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
@@ -761,18 +761,16 @@ public class PortfolioAddStockFragment extends Fragment {
     }
 
     private void lookupCompanyMetadata(String ticker, MetadataCallback callback) {
-        String token = ApiConfig.finnhubKey();
-        if (token == null || token.trim().isEmpty()) {
-            android.util.Log.w("PortfolioAddStock", "Company lookup skipped: API key is missing");
+        if (!FinnhubProxy.isAvailable()) {
+            android.util.Log.w("PortfolioAddStock", "Company lookup skipped: not logged in");
             callback.onResult(new CompanyMetadata("", null));
             return;
         }
         try {
             String encodedSymbol = URLEncoder.encode(ticker, StandardCharsets.UTF_8.name());
-            String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8.name());
             Request request = new Request.Builder()
                     .url(ApiConfig.FINNHUB_PROFILE
-                            + encodedSymbol + "&token=" + encodedToken)
+                            + encodedSymbol)
                     .build();
             client.newCall(request).enqueue(new Callback() {
                 @Override

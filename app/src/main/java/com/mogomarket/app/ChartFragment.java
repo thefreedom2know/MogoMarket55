@@ -231,7 +231,6 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private boolean crosshairDismissGesture;
 
     private final OkHttpClient client = new OkHttpClient();
-    private final String FINNHUB_KEY = "d918pn9r01qr1uqui560d918pn9r01qr1uqui56g";
 
     private String symbol = "SPY";
     private String interval = "1day";
