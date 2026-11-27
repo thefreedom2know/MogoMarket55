@@ -14,6 +14,7 @@ import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
@@ -93,6 +94,9 @@ public class PortfolioAddStockFragment extends Fragment {
     private boolean syncingTradeInputs;
     private boolean sharesArePrimary;
     private String metadataLookupTicker = "";
+    /** Spinner position the app picked by itself from the ticker; -1 once the user picks one. */
+    private int autoSectorPosition = -1;
+    private Runnable pendingSectorDetect;
 
     private String selectedCompanyName = "";
     private final ActivityResultLauncher<String> screenshotPicker =
@@ -163,6 +167,17 @@ public class PortfolioAddStockFragment extends Fragment {
                 android.R.layout.simple_spinner_item, sectors);
         sectorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerSector.setAdapter(sectorAdapter);
+        spinnerSector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                // A choice the user makes by hand is never overwritten by auto-detection.
+                if (position != autoSectorPosition) {
+                    autoSectorPosition = -1;
+                }
+            }
+
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        });
         setupTradeInputSync();
         applyTheme();
         btnAddStock.setOnClickListener(view -> addStock());
@@ -270,6 +285,7 @@ public class PortfolioAddStockFragment extends Fragment {
             selectedCompanyName = sel.name != null && !sel.name.startsWith("Use symbol:")
                     ? sel.name.trim() : "";
             metadataLookupTicker = "";
+            applySectorFromTicker(picked);
 
             isManualSelection = true;
             editTicker.setText(picked);
@@ -288,6 +304,7 @@ public class PortfolioAddStockFragment extends Fragment {
                 metadataLookupTicker = "";
                 String q = s == null ? "" : s.toString().trim();
                 scheduleSearch(q);
+                scheduleSectorDetect(q);
             }
         });
     }
@@ -675,6 +692,7 @@ public class PortfolioAddStockFragment extends Fragment {
             }
         }
 
+        applySectorFromTicker(ticker);
         if (isSpxTicker(ticker)) {
             selectedCompanyName = "S&P 500 Index";
             metadataLookupTicker = ticker;
@@ -694,6 +712,7 @@ public class PortfolioAddStockFragment extends Fragment {
                     selectedCompanyName = metadata.name.trim();
                 }
                 if (metadata.sector != null
+                        && Sp500Sectors.sectorFor(metadataTicker) == null
                         && spinnerSector != null
                         && "Sector (optional)".equals(
                         spinnerSector.getSelectedItem().toString())) {
@@ -856,6 +875,36 @@ public class PortfolioAddStockFragment extends Fragment {
                 return;
             }
         }
+    }
+
+    /** Waits until the user stops typing, so "A" on the way to "AMZN" doesn't flash a sector. */
+    private void scheduleSectorDetect(String ticker) {
+        if (pendingSectorDetect != null) searchHandler.removeCallbacks(pendingSectorDetect);
+        pendingSectorDetect = () -> applySectorFromTicker(ticker);
+        searchHandler.postDelayed(pendingSectorDetect, 500);
+    }
+
+    /**
+     * Fills the sector for S&P 500 stocks. Only touches the spinner while it is still empty or
+     * showing a sector the app picked earlier, so a sector the user chose stays as it is.
+     */
+    private void applySectorFromTicker(String ticker) {
+        if (spinnerSector == null) return;
+        int current = spinnerSector.getSelectedItemPosition();
+        boolean autoOwned = current == 0 || current == autoSectorPosition;
+        if (!autoOwned) return;
+        String sector = CryptoHelper.isCryptoSymbol(ticker) ? null : Sp500Sectors.sectorFor(ticker);
+        int target = sector == null ? 0 : positionOfSector(sector);
+        if (target < 0) target = 0;
+        autoSectorPosition = target == 0 ? -1 : target;
+        spinnerSector.setSelection(target);
+    }
+
+    private int positionOfSector(String sector) {
+        for (int i = 0; i < spinnerSector.getCount(); i++) {
+            if (sector.equals(spinnerSector.getItemAtPosition(i).toString())) return i;
+        }
+        return -1;
     }
 
     private boolean isSpxTicker(String ticker) {
