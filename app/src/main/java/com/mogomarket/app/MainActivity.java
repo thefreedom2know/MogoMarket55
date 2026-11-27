@@ -102,6 +102,9 @@ public class MainActivity extends AppCompatActivity {
         if (prefs.getBoolean(DailySummaryEmailService.KEY_ENABLED, false)) {
             DailySummaryEmailService.scheduleDailySummary(this);
         }
+        if (prefs.getBoolean(DailySummaryEmailService.KEY_WEEKLY_ENABLED, false)) {
+            DailySummaryEmailService.scheduleWeeklySummary(this);
+        }
     }
 
     private void setupNavigationDock() {

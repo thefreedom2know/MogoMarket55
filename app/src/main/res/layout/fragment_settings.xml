@@ -520,6 +520,108 @@
                     style="@style/Widget.Material3.Button.TonalButton"
                     app:cornerRadius="14dp" />
 
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="18dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@color/colorDivider" />
+
+                <!-- Weekly email toggle -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="14dp">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchWeeklyEmail"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="12dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Weekly summary email"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="How your portfolio and the market did over the last 7 days, once a week. Uses the same content, language and recipient as the daily summary."
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="12sp"
+                            android:layout_marginTop="2dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnWeeklySummaryDay"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="60dp"
+                        android:text="Day: Saturday"
+                        android:textAllCaps="false"
+                        android:textSize="13sp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        app:cornerRadius="14dp"
+                        app:strokeColor="@color/pf_3322d3ee"
+                        app:strokeWidth="1dp" />
+
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="1dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnWeeklySummaryTime"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="60dp"
+                        android:text="Time: 09:00"
+                        android:textAllCaps="false"
+                        android:textSize="13sp"
+                        android:maxLines="3"
+                        android:ellipsize="end"
+                        app:cornerRadius="14dp"
+                        app:strokeColor="@color/pf_3322d3ee"
+                        app:strokeWidth="1dp" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSendWeeklyEmailNow"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="4dp"
+                    android:text="&#128231; Send weekly summary now"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    app:cornerRadius="14dp" />
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

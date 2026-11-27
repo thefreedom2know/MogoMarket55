@@ -64,6 +64,8 @@ final class DailySummaryReport {
 
     // Language of the report being built (set at the start of build()).
     private static boolean he;
+    // Weekly report: changes are since the start of the week instead of the previous close.
+    private static boolean weekly;
 
     private static String s(String en, String hebrew) {
         return he ? hebrew : en;
@@ -78,6 +80,8 @@ final class DailySummaryReport {
         final String symbol;
         double price = Double.NaN;
         double changePercent = Double.NaN;
+        /** 0 = daily change; otherwise change since the last close before this time (ms). */
+        long changeSince;
 
         Quote(String label, String symbol) {
             this.label = label;
@@ -96,6 +100,9 @@ final class DailySummaryReport {
 
     static final class Input {
         boolean hebrew;
+        /** Weekly summary: every change is measured since {@link #periodStart}. */
+        boolean weekly;
+        long periodStart;
         List<String> enabledItems = new ArrayList<>();
         String dateTitle;
         List<DailyTradeEvent> trades = new ArrayList<>();
@@ -112,7 +119,7 @@ final class DailySummaryReport {
         try {
             String url = ApiConfig.YAHOO_CHART
                     + URLEncoder.encode(q.symbol, StandardCharsets.UTF_8).replace("+", "%20")
-                    + "?range=5d&interval=1d";
+                    + (q.changeSince > 0 ? "?range=1mo&interval=1d" : "?range=5d&interval=1d");
             Request req = new Request.Builder().url(url)
                     .header("User-Agent", "Mozilla/5.0").build();
             try (Response r = CLIENT.newCall(req).execute()) {
@@ -122,7 +129,9 @@ final class DailySummaryReport {
                 if (result == null || result.length() == 0) return;
                 YahooQuoteMath.Quote parsed = YahooQuoteMath.fromChartItem(result.get(0));
                 q.price = parsed.price > 0 ? parsed.price : Double.NaN;
-                q.changePercent = parsed.changePercent;
+                q.changePercent = q.changeSince > 0
+                        ? YahooQuoteMath.changeSince(result.get(0), q.price, q.changeSince)
+                        : parsed.changePercent;
             }
         } catch (Exception ignored) {
         }
@@ -158,6 +167,7 @@ final class DailySummaryReport {
 
     static Rendered build(Input in) {
         he = in.hebrew;
+        weekly = in.weekly;
 
         List<Quote> market = new ArrayList<>();
         addIf(in, market, ITEM_SPX, "S&P 500", "S&P 500", "^GSPC");
@@ -184,6 +194,7 @@ final class DailySummaryReport {
         List<Quote> all = new ArrayList<>(market);
         all.addAll(sectors);
         all.addAll(watch);
+        if (weekly) for (Quote q : all) q.changeSince = in.periodStart;
         loadAll(all);
 
         FearGreedFetcher.Snapshot fg = in.enabledItems.contains(ITEM_FEAR_GREED)
@@ -206,18 +217,20 @@ final class DailySummaryReport {
                 .append("<div style=\"font-size:13px;color:#94a3b8;letter-spacing:1px;\">")
                 .append("MOGOMARKET</div>")
                 .append("<div style=\"font-size:24px;font-weight:bold;margin-top:4px;\">")
-                .append(s("Daily Summary", "סיכום יומי")).append("</div>")
+                .append(title()).append("</div>")
                 .append("<div style=\"font-size:14px;color:#cbd5e1;margin-top:4px;\">")
                 .append(esc(in.dateTitle)).append("</div></div>")
                 .append("<div style=\"background:#ffffff;padding:6px 22px 22px;")
                 .append("border-radius:0 0 14px 14px;\">");
-        t.append("MogoMarket - ").append(s("Daily Summary", "סיכום יומי")).append('\n')
+        t.append("MogoMarket - ").append(title()).append('\n')
                 .append(in.dateTitle).append("\n\n");
 
         // --- Market snapshot ---
         if (!market.isEmpty()) {
-            section(h, s("Market snapshot", "תמונת שוק"));
-            t.append(s("MARKET SNAPSHOT", "תמונת שוק")).append('\n');
+            section(h, weekly ? s("Market this week", "השוק השבוע")
+                    : s("Market snapshot", "תמונת שוק"));
+            t.append(weekly ? s("MARKET THIS WEEK", "השוק השבוע")
+                    : s("MARKET SNAPSHOT", "תמונת שוק")).append('\n');
             tableOpen(h);
             for (Quote q : market) {
                 quoteRow(h, q.label, q);
@@ -266,8 +279,10 @@ final class DailySummaryReport {
             List<Quote> ok = new ArrayList<>();
             for (Quote q : sectors) if (q.ok()) ok.add(q);
             Collections.sort(ok, (a, b) -> Double.compare(b.changePercent, a.changePercent));
-            section(h, s("S&amp;P 500 sectors", "סקטורים ב-S&amp;P 500"));
-            t.append(s("S&P 500 SECTORS", "סקטורים ב-S&P 500")).append('\n');
+            section(h, s("S&amp;P 500 sectors", "סקטורים ב-S&amp;P 500")
+                    + (weekly ? s(" this week", " השבוע") : ""));
+            t.append(s("S&P 500 SECTORS", "סקטורים ב-S&P 500"))
+                    .append(weekly ? s(" THIS WEEK", " השבוע") : "").append('\n');
             if (ok.isEmpty()) {
                 h.append(muted(unavailable));
                 t.append(unavailable).append("\n\n");
@@ -311,8 +326,11 @@ final class DailySummaryReport {
                         .append(fmtPct(p.dailyReturnPercent)).append(")</span></div>")
                         .append("<div style=\"font-size:13px;color:").append(GRAY)
                         .append(";margin-top:2px;\">")
-                        .append(s("Today's P&amp;L from open positions",
-                                "רווח/הפסד יומי מהפוזיציות הפתוחות")).append("</div>")
+                        .append(weekly
+                                ? s("This week's P&amp;L from open positions",
+                                        "רווח/הפסד שבועי מהפוזיציות הפתוחות")
+                                : s("Today's P&amp;L from open positions",
+                                        "רווח/הפסד יומי מהפוזיציות הפתוחות")).append("</div>")
                         .append("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
                         .append("style=\"border-collapse:collapse;margin-top:10px;\">");
                 kvRow(h, s("Portfolio value", "שווי התיק"), fmtMoney(p.marketValue), null);
@@ -334,13 +352,16 @@ final class DailySummaryReport {
                             .append(";padding:4px 0;\">").append(s("Stock", "מניה")).append("</td>")
                             .append("<td align=\"").append(endAlign())
                             .append("\" style=\"font-size:11px;color:").append(GRAY)
-                            .append(";padding:4px 0;\">").append(s("Today", "היום")).append("</td>")
+                            .append(";padding:4px 0;\">").append(weekly ? s("This week", "השבוע") : s("Today", "היום")).append("</td>")
                             .append("<td align=\"").append(endAlign())
                             .append("\" style=\"font-size:11px;color:").append(GRAY)
                             .append(";padding:4px 0 4px 14px;\">")
                             .append(s("Since entry", "מאז הכניסה")).append("</td></tr>");
-                    t.append(s("Each position (today | since entry):",
-                            "כל פוזיציה (היום | מאז הכניסה):")).append('\n');
+                    t.append(weekly
+                            ? s("Each position (this week | since entry):",
+                                    "כל פוזיציה (השבוע | מאז הכניסה):")
+                            : s("Each position (today | since entry):",
+                                    "כל פוזיציה (היום | מאז הכניסה):")).append('\n');
                     for (PortfolioDailyPerformance.Position pos : sorted) {
                         h.append("<tr><td style=\"padding:8px 0;border-top:1px solid #e5e7eb;")
                                 .append("font-weight:bold;font-size:14px;\">")
@@ -356,7 +377,8 @@ final class DailySummaryReport {
                     h.append("</table>");
                     t.append('\n');
                 }
-                t.append(s("Today's P&L: ", "רווח/הפסד יומי: ")).append(fmtSignedMoney(p.dailyPnl))
+                t.append(weekly ? s("This week's P&L: ", "רווח/הפסד שבועי: ")
+                                : s("Today's P&L: ", "רווח/הפסד יומי: ")).append(fmtSignedMoney(p.dailyPnl))
                         .append(" (").append(fmtPct(p.dailyReturnPercent)).append(")\n")
                         .append(s("Portfolio value: ", "שווי התיק: ")).append(fmtMoney(p.marketValue))
                         .append('\n').append(s("Total P&L: ", "רווח/הפסד כולל: "))
@@ -440,8 +462,10 @@ final class DailySummaryReport {
             List<Quote> ok = new ArrayList<>();
             for (Quote q : watch) if (q.ok()) ok.add(q);
             Collections.sort(ok, (a, b) -> Double.compare(b.changePercent, a.changePercent));
-            section(h, s("Watchlist movers", "תנועות ברשימת המעקב"));
-            t.append(s("WATCHLIST MOVERS", "תנועות ברשימת המעקב")).append('\n');
+            section(h, weekly ? s("Watchlist movers this week", "תנועות ברשימת המעקב השבוע")
+                    : s("Watchlist movers", "תנועות ברשימת המעקב"));
+            t.append(weekly ? s("WATCHLIST MOVERS THIS WEEK", "תנועות ברשימת המעקב השבוע")
+                    : s("WATCHLIST MOVERS", "תנועות ברשימת המעקב")).append('\n');
             if (ok.isEmpty()) {
                 String empty = s("Your watchlist is empty or unavailable.",
                         "רשימת המעקב ריקה או לא זמינה.");
@@ -480,6 +504,10 @@ final class DailySummaryReport {
         out.html = h.toString();
         out.text = t.toString();
         return out;
+    }
+
+    private static String title() {
+        return weekly ? s("Weekly Summary", "סיכום שבועי") : s("Daily Summary", "סיכום יומי");
     }
 
     private static void addIf(Input in, List<Quote> list, String id, String labelEn,

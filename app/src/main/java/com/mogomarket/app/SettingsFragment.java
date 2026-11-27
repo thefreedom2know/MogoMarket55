@@ -231,6 +231,8 @@ public class SettingsFragment extends Fragment {
             });
         }
 
+        setupWeeklySummarySection(v);
+
         setupDefaultSymbolSection(v);
         setupDefaultChartTimeframe(v);
         setupChartChangePercentage(v);
@@ -394,7 +396,7 @@ public class SettingsFragment extends Fragment {
             checked[i] = DailySummaryEmailService.isItemEnabled(prefs, ids[i]);
         }
         new AlertDialog.Builder(requireContext())
-                .setTitle("Include in the daily summary")
+                .setTitle("Include in the daily and weekly summary")
                 .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) ->
                         checked[which] = isChecked)
                 .setPositiveButton("Save", (dialog, which) -> {
@@ -452,6 +454,115 @@ public class SettingsFragment extends Fragment {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    // ─── Weekly summary ───────────────────────────────────────────────────────
+
+    private static final int[] WEEK_DAYS = {Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY,
+            Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY};
+    private static final String[] WEEK_DAY_NAMES = {"Sunday", "Monday", "Tuesday", "Wednesday",
+            "Thursday", "Friday", "Saturday"};
+
+    private void setupWeeklySummarySection(View v) {
+        SwitchMaterial switchWeekly = v.findViewById(R.id.switchWeeklyEmail);
+        MaterialButton btnDay = v.findViewById(R.id.btnWeeklySummaryDay);
+        MaterialButton btnTime = v.findViewById(R.id.btnWeeklySummaryTime);
+        MaterialButton btnSendNow = v.findViewById(R.id.btnSendWeeklyEmailNow);
+        final String keyEnabled = DailySummaryEmailService.KEY_WEEKLY_ENABLED;
+
+        if (btnDay != null) {
+            updateWeeklyDayButton(btnDay);
+            btnDay.setOnClickListener(view -> {
+                int current = prefs.getInt(DailySummaryEmailService.KEY_WEEKLY_DAY,
+                        DailySummaryEmailService.DEFAULT_WEEKLY_DAY);
+                int checked = 0;
+                for (int i = 0; i < WEEK_DAYS.length; i++) if (WEEK_DAYS[i] == current) checked = i;
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Send the weekly summary on")
+                        .setSingleChoiceItems(WEEK_DAY_NAMES, checked, (dialog, which) -> {
+                            prefs.edit().putInt(DailySummaryEmailService.KEY_WEEKLY_DAY,
+                                    WEEK_DAYS[which]).apply();
+                            updateWeeklyDayButton(btnDay);
+                            if (prefs.getBoolean(keyEnabled, false)) {
+                                DailySummaryEmailService.scheduleWeeklySummary(requireContext());
+                            }
+                            dialog.dismiss();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        }
+        if (btnTime != null) {
+            updateWeeklyTimeButton(btnTime);
+            btnTime.setOnClickListener(view -> {
+                int hour = prefs.getInt(DailySummaryEmailService.KEY_WEEKLY_HOUR,
+                        DailySummaryEmailService.DEFAULT_WEEKLY_HOUR);
+                int minute = prefs.getInt(DailySummaryEmailService.KEY_WEEKLY_MINUTE, 0);
+                new TimePickerDialog(requireContext(), (picker, selectedHour, selectedMinute) -> {
+                    prefs.edit()
+                            .putInt(DailySummaryEmailService.KEY_WEEKLY_HOUR, selectedHour)
+                            .putInt(DailySummaryEmailService.KEY_WEEKLY_MINUTE, selectedMinute)
+                            .apply();
+                    updateWeeklyTimeButton(btnTime);
+                    if (prefs.getBoolean(keyEnabled, false)) {
+                        DailySummaryEmailService.scheduleWeeklySummary(requireContext());
+                    }
+                }, hour, minute, true).show();
+            });
+        }
+        if (switchWeekly != null) {
+            boolean enabled = prefs.getBoolean(keyEnabled, false);
+            switchWeekly.setChecked(enabled);
+            if (enabled) DailySummaryEmailService.scheduleWeeklySummary(requireContext());
+            switchWeekly.setOnCheckedChangeListener((btn, isChecked) -> {
+                prefs.edit().putBoolean(keyEnabled, isChecked).apply();
+                if (isChecked) {
+                    DailySummaryEmailService.scheduleWeeklySummary(requireContext());
+                    Toast.makeText(requireContext(), "Weekly summary enabled: every "
+                            + weeklyDayName() + " at " + weeklyTimeText(), Toast.LENGTH_LONG).show();
+                } else {
+                    DailySummaryEmailService.cancelWeeklySummary(requireContext());
+                    Toast.makeText(requireContext(), "Weekly summary email disabled",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        if (btnSendNow != null) {
+            btnSendNow.setOnClickListener(view -> {
+                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                if (user == null || user.isAnonymous() || user.getEmail() == null
+                        || user.getEmail().trim().isEmpty()) {
+                    Toast.makeText(requireContext(), "No valid user email found",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                Toast.makeText(requireContext(), "Sending weekly summary email...",
+                        Toast.LENGTH_SHORT).show();
+                DailySummaryEmailService.sendWeeklyNow(requireContext(), true);
+            });
+        }
+    }
+
+    private String weeklyDayName() {
+        int day = prefs.getInt(DailySummaryEmailService.KEY_WEEKLY_DAY,
+                DailySummaryEmailService.DEFAULT_WEEKLY_DAY);
+        for (int i = 0; i < WEEK_DAYS.length; i++) if (WEEK_DAYS[i] == day) return WEEK_DAY_NAMES[i];
+        return WEEK_DAY_NAMES[6];
+    }
+
+    private String weeklyTimeText() {
+        return String.format(Locale.getDefault(), "%02d:%02d",
+                prefs.getInt(DailySummaryEmailService.KEY_WEEKLY_HOUR,
+                        DailySummaryEmailService.DEFAULT_WEEKLY_HOUR),
+                prefs.getInt(DailySummaryEmailService.KEY_WEEKLY_MINUTE, 0));
+    }
+
+    private void updateWeeklyDayButton(MaterialButton button) {
+        button.setText("Day: " + weeklyDayName());
+    }
+
+    private void updateWeeklyTimeButton(MaterialButton button) {
+        button.setText("Time: " + weeklyTimeText());
     }
 
     private void updateDailySummaryTimeButton(MaterialButton button) {
