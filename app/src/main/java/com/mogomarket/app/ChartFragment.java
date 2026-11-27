@@ -265,6 +265,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private boolean showVolume;
     private boolean volumeColorByOpen; // false: vs previous close (daily), true: open to close
     private final List<Float> currentVolumes = new ArrayList<>();
+    /** Highest volume bar on screen; volume-axis labels above it are hidden. */
+    private float volumeAxisTop = 0f;
     private List<Float> pendingVolumes = new ArrayList<>();
     private float lastPrice = 0f;
     private boolean isManualSelection = false;
@@ -976,6 +978,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             candleStickChart.setBackgroundColor(chartCard);
             candleStickChart.getXAxis().setTextColor(chartSec);
             candleStickChart.getAxisLeft().setTextColor(chartSec);
+            candleStickChart.getAxisRight().setTextColor(chartSec);
             candleStickChart.invalidate();
         }
         if (lineChart != null) {
@@ -1032,7 +1035,32 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         leftAxis.setTextColor(textSec);
         leftAxis.setTextSize(10f);
         leftAxis.setLabelCount(5, false);
-        candleStickChart.getAxisRight().setEnabled(false);
+        // Right axis = volume scale. Labels sit inside the chart so the plot width
+        // (and alignment with the indicator pane) does not change.
+        YAxis volumeAxis = candleStickChart.getAxisRight();
+        volumeAxis.setEnabled(true);
+        volumeAxis.setDrawGridLines(false);
+        volumeAxis.setDrawAxisLine(false);
+        volumeAxis.setPosition(YAxis.YAxisLabelPosition.INSIDE_CHART);
+        volumeAxis.setTextColor(textSec);
+        volumeAxis.setTextSize(9f);
+        // The axis spans 4.5x the top bar, so 10 evenly spaced labels land on
+        // 0, 50% and 100% of the highest bar; anything above that is left blank.
+        volumeAxis.setLabelCount(10, true);
+        volumeAxis.setValueFormatter(new ValueFormatter() {
+            @Override public String getFormattedValue(float value) {
+                if (value <= 0f || volumeAxisTop <= 0f || value > volumeAxisTop * 1.01f) return "";
+                return formatVolume(value);
+            }
+        });
+    }
+
+    static String formatVolume(double v) {
+        double a = Math.abs(v);
+        if (a >= 1e9) return String.format(Locale.US, "%.1fB", v / 1e9);
+        if (a >= 1e6) return String.format(Locale.US, "%.1fM", v / 1e6);
+        if (a >= 1e3) return String.format(Locale.US, "%.1fK", v / 1e3);
+        return String.format(Locale.US, "%.0f", v);
     }
 
     private void setupLineChartStyle() {
@@ -2293,6 +2321,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         com.github.mikephil.charting.components.YAxis right = candleStickChart.getAxisRight();
         right.setAxisMinimum(0f);
         right.setAxisMaximum(maxVolume > 0f ? maxVolume * 4.5f : 1f); // bars use the bottom ~22%
+        boolean volumeVisible = showVolume && maxVolume > 0f;
+        volumeAxisTop = volumeVisible ? maxVolume : 0f;
+        right.setDrawLabels(volumeVisible);
         candleStickChart.setDrawOrder(!hasLines
                 ? new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE}
                 : new CombinedChart.DrawOrder[]{CombinedChart.DrawOrder.BAR, CombinedChart.DrawOrder.CANDLE, CombinedChart.DrawOrder.LINE});
