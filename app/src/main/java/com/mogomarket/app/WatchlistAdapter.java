@@ -45,7 +45,6 @@ import okhttp3.Response;
 
 public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.ViewHolder> {
 
-    private static final String FINNHUB_KEY = ApiConfig.finnhubKey();
 
 
     public interface OnWatchStockClickListener {
@@ -63,7 +62,7 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
     private final List<StockWatchData> fullList = new ArrayList<>();
     private final List<StockWatchData> displayList = new ArrayList<>();
     private final List<String> manualOrderSymbols = new ArrayList<>();
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client = FinnhubProxy.client();
 
     private final Map<String, float[]> quoteCache = new HashMap<>();
     private final Set<String> loading = new HashSet<>();
@@ -630,8 +629,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
             return;
         }
 
-        // Finnhub needs an API key; without one fall back to the free Yahoo chart API below.
-        if (FINNHUB_KEY != null && !FINNHUB_KEY.trim().isEmpty()
+        // Finnhub goes through the server function (needs a login); otherwise use free Yahoo below.
+        if (FinnhubProxy.isAvailable()
                 && !isForex(requestSymbol) && !requestSymbol.endsWith("=F")
                 && !requestSymbol.startsWith("^")) {
             fetchFinnhubQuote(stock, holder, targetSymbol, requestSymbol, colorPrimary,
@@ -768,15 +767,8 @@ public class WatchlistAdapter extends RecyclerView.Adapter<WatchlistAdapter.View
                                    String targetSymbol, String symbol, int colorPrimary,
                                    int textSecondary, int colorGain, int colorLoss,
                                    Context context) {
-        if (FINNHUB_KEY == null || FINNHUB_KEY.trim().isEmpty()) {
-            showDash(holder, textSecondary);
-            Log.w("WatchlistAdapter", "Finnhub quote key is missing for " + symbol);
-            return;
-        }
         String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
-        String encodedToken = URLEncoder.encode(FINNHUB_KEY, StandardCharsets.UTF_8);
-        String url = ApiConfig.FINNHUB_QUOTE + encodedSymbol
-                + "&token=" + encodedToken;
+        String url = ApiConfig.FINNHUB_QUOTE + encodedSymbol;
         client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException error) {

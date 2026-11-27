@@ -56,10 +56,9 @@ public class TickerSearchSheet extends BottomSheetDialogFragment {
         this.listener = listener;
     }
 
-    private static final String FINNHUB_KEY = "d918pn9r01qr1uqui560d918pn9r01qr1uqui56g";
     private static final long DEBOUNCE_MS = 250L;
 
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client = FinnhubProxy.client();
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
     private Runnable pendingSearch;
     private int searchGeneration;
@@ -413,7 +412,7 @@ public class TickerSearchSheet extends BottomSheetDialogFragment {
     private void fetchFinnhubStocks(String query, SearchAccumulator accumulator) {
         try {
             String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name());
-            String url = ApiConfig.FINNHUB_SEARCH + encoded + "&token=" + FINNHUB_KEY;
+            String url = ApiConfig.FINNHUB_SEARCH + encoded;
             Request req = new Request.Builder().url(url).build();
 
             client.newCall(req).enqueue(new Callback() {

@@ -48,8 +48,7 @@ public class StocksFragment extends Fragment implements StocksAdapter.OnStockCli
     private StocksAdapter adapter;
     private List<StockData> stocksList = new ArrayList<>();
     private DatabaseReference stocksRef;
-    private final OkHttpClient client = new OkHttpClient();
-    private static final String API_KEY = "d918pn9r01qr1uqui560d918pn9r01qr1uqui56g";
+    private final OkHttpClient client = FinnhubProxy.client();
 
     @Nullable
     @Override
@@ -160,9 +159,9 @@ public class StocksFragment extends Fragment implements StocksAdapter.OnStockCli
             url = ApiConfig.BINANCE_24H + pair;
         } else if (isForex) {
             String forexSymbol = "OANDA:" + cleanSymbol.replace("/", "_");
-            url = ApiConfig.FINNHUB_QUOTE + forexSymbol + "&token=" + API_KEY;
+            url = ApiConfig.FINNHUB_QUOTE + forexSymbol;
         } else {
-            url = ApiConfig.FINNHUB_QUOTE + cleanSymbol + "&token=" + API_KEY;
+            url = ApiConfig.FINNHUB_QUOTE + cleanSymbol;
         }
 
         Request request = new Request.Builder().url(url).build();

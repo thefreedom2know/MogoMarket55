@@ -68,7 +68,6 @@ public class WatchlistFragment extends Fragment {
     public static final String KEY_WATCHLIST_NAV = "watchlist_navigate_to_chart";
     public static final String KEY_WATCHLIST_HIDE_KB = "watchlist_hide_keyboard_on_add";
 
-    private static final String FINNHUB_KEY = "d918pn9r01qr1uqui560d918pn9r01qr1uqui56g";
     private static final long SEARCH_DEBOUNCE_MS = 300L;
 
     private WatchlistAdapter adapter;
@@ -77,7 +76,7 @@ public class WatchlistFragment extends Fragment {
     private DatabaseReference watchlistRef;
     private ValueEventListener watchlistListener;
 
-    private final OkHttpClient httpClient = new OkHttpClient();
+    private final OkHttpClient httpClient = FinnhubProxy.client();
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearch;
     private int suggestionSearchGeneration;
@@ -715,7 +714,7 @@ public class WatchlistFragment extends Fragment {
         try {
             String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name());
             Request finnhub = new Request.Builder()
-                    .url(ApiConfig.FINNHUB_SEARCH + encoded + "&token=" + FINNHUB_KEY)
+                    .url(ApiConfig.FINNHUB_SEARCH + encoded)
                     .build();
             httpClient.newCall(finnhub).enqueue(new Callback() {
                 @Override

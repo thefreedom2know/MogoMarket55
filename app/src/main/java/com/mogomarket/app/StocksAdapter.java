@@ -73,7 +73,7 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
     private OnPortfolioSummaryListener portfolioSummaryListener;
     private final Map<String, StockViewHolder> visibleHolders = new HashMap<>();
     private double cashBalance;
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client = FinnhubProxy.client();
 
     public StocksAdapter(List<StockData> stocks, OnStockClickListener listener) {
         this.stocks = stocks;
@@ -579,15 +579,14 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
                     textPrimary, textSecondary, colorNeutral);
             return;
         }
-        if (ApiConfig.finnhubKey() == null || ApiConfig.finnhubKey().trim().isEmpty()) {
-            // No Finnhub key configured: use the free Yahoo chart API instead.
+        if (!FinnhubProxy.isAvailable()) {
+            // Not logged in, so the Finnhub server function cannot be used: use free Yahoo data.
             fetchYahooQuote(symbol, stock, holder, colorGain, colorLoss,
                     textPrimary, textSecondary, colorNeutral);
             return;
         }
         String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
-        String url = ApiConfig.FINNHUB_QUOTE + encodedSymbol
-                + "&token=" + ApiConfig.finnhubKey();
+        String url = ApiConfig.FINNHUB_QUOTE + encodedSymbol;
         client.newCall(new Request.Builder().url(url).build()).enqueue(new Callback() {
             @Override public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 holder.currentPriceText.post(() -> { holder.currentPriceText.setText("?"); holder.currentPriceText.setTextColor(colorNeutral); });

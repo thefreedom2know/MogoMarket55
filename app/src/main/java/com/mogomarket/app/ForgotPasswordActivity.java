@@ -3,6 +3,7 @@ package com.mogomarket.app;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.Patterns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -15,24 +16,15 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.firebase.FirebaseNetworkException;
+import com.google.firebase.FirebaseTooManyRequestsException;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 
-import java.util.Properties;
-import java.util.concurrent.Executors;
-
-import javax.mail.Authenticator;
-import javax.mail.Message;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 
 public class ForgotPasswordActivity extends AppCompatActivity {
 
     private static final String TAG           = "ForgotPassword";
-    private static final String SMTP_EMAIL    = ApiConfig.smtpEmail();
-    private static final String SMTP_PASSWORD = ApiConfig.smtpPassword();
 
     private EditText    editTextEmail;
     private Button      btnSendReset;
@@ -68,6 +60,10 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         tvBackToLogin.setOnClickListener(v -> finish());
     }
 
+    /**
+     * Firebase Auth sends the reset link itself (template, sender and wording are set in the
+     * Firebase console under Authentication > Templates). No email password lives in the app.
+     */
     private void sendResetEmail() {
         String email = editTextEmail.getText().toString().trim();
 
@@ -76,93 +72,47 @@ public class ForgotPasswordActivity extends AppCompatActivity {
             editTextEmail.requestFocus();
             return;
         }
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            editTextEmail.setError("Enter a valid email address");
+            editTextEmail.requestFocus();
+            return;
+        }
 
         progressBar.setVisibility(View.VISIBLE);
         btnSendReset.setEnabled(false);
 
-        // Step 1: Firebase sends the real reset link
+        mAuth.useAppLanguage();
         mAuth.sendPasswordResetEmail(email)
                 .addOnCompleteListener(task -> {
+                    progressBar.setVisibility(View.GONE);
+                    btnSendReset.setEnabled(true);
                     if (task.isSuccessful()) {
-                        Log.d(TAG, "Firebase reset email sent successfully.");
-                        // Step 2: Also send a styled notification via Gmail
-                        sendGmailNotification(email);
+                        Toast.makeText(this,
+                                "If this email has an account, a reset link was sent. "
+                                        + "Check your inbox (and spam folder).",
+                                Toast.LENGTH_LONG).show();
+                        finish();
+                        return;
+                    }
+                    Exception error = task.getException();
+                    Log.e(TAG, "Password reset failed", error);
+                    String msg;
+                    if (error instanceof FirebaseAuthInvalidUserException) {
+                        // Same answer as success, so the screen does not reveal who has an account.
+                        Toast.makeText(this,
+                                "If this email has an account, a reset link was sent. "
+                                        + "Check your inbox (and spam folder).",
+                                Toast.LENGTH_LONG).show();
+                        finish();
+                        return;
+                    } else if (error instanceof FirebaseTooManyRequestsException) {
+                        msg = "Too many attempts. Please try again later.";
+                    } else if (error instanceof FirebaseNetworkException) {
+                        msg = "No internet connection. Please try again.";
                     } else {
-                        progressBar.setVisibility(View.GONE);
-                        btnSendReset.setEnabled(true);
-                        String msg = task.getException() != null
-                                ? task.getException().getMessage()
-                                : "Failed to send reset email.";
-                        Log.e(TAG, "Firebase error: " + msg);
-                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+                        msg = "Could not send the reset email. Please try again.";
                     }
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
                 });
-    }
-
-    private void sendGmailNotification(String toEmail) {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                Properties props = new Properties();
-                props.put("mail.smtp.host", "smtp.gmail.com");
-                props.put("mail.smtp.port", "587");
-                props.put("mail.smtp.auth", "true");
-                props.put("mail.smtp.starttls.enable", "true");
-
-                Session session = Session.getInstance(props, new Authenticator() {
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(SMTP_EMAIL, SMTP_PASSWORD);
-                    }
-                });
-
-                MimeMessage message = new MimeMessage(session);
-                message.setFrom(new InternetAddress(SMTP_EMAIL, "MogoMarket"));
-                message.addRecipient(Message.RecipientType.TO, new InternetAddress(toEmail));
-                message.setSubject("MogoMarket - Password Reset Request");
-                message.setContent(buildEmailHtml(toEmail), "text/html; charset=utf-8");
-
-                Transport.send(message);
-                Log.d(TAG, "Gmail notification sent to " + toEmail);
-
-            } catch (Exception e) {
-                Log.e(TAG, "Gmail send failed: ", e);
-                // Gmail failure is non-critical — Firebase already sent the link
-            }
-
-            runOnUiThread(() -> {
-                progressBar.setVisibility(View.GONE);
-                btnSendReset.setEnabled(true);
-                Toast.makeText(this,
-                        "Password reset email sent! Check your inbox (and spam folder).",
-                        Toast.LENGTH_LONG).show();
-                finish();
-            });
-        });
-    }
-
-    private String buildEmailHtml(String toEmail) {
-        return "<!DOCTYPE html><html><head><meta charset='UTF-8'>" +
-                "<style>" +
-                "body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px}" +
-                ".container{max-width:480px;margin:auto;background:#fff;border-radius:12px;" +
-                "overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1)}" +
-                ".header{background:linear-gradient(135deg,#1565C0,#00695C);padding:30px;text-align:center}" +
-                ".header h1{color:#fff;margin:0;font-size:24px}" +
-                ".body{padding:30px}" +
-                ".body p{color:#333;font-size:15px;line-height:1.6}" +
-                ".note{font-size:13px;color:#999;margin-top:16px}" +
-        ".footer{background:#f9f9f9;padding:16px;text-align:center;color:#999;font-size:12px}" +
-                "</style></head><body>" +
-                "<div class='container'>" +
-                "<div class='header'><h1>&#128272; MogoMarket</h1></div>" +
-                "<div class='body'>" +
-                "<p>Hi,</p>" +
-                "<p>We received a request to reset the password for your MogoMarket account associated with <strong>" + toEmail + "</strong>.</p>" +
-                "<p>A separate email with the reset link has been sent to you from Firebase. " +
-                "Please check your inbox — and if you don't see it, check your <strong>spam folder</strong>.</p>" +
-                "<p class='note'>If you didn't request a password reset, you can safely ignore this email.</p>" +
-                "</div>" +
-                "<div class='footer'>MogoMarket &copy; 2026 &bull; Personal Investment Manager</div>" +
-                "</div></body></html>";
     }
 }

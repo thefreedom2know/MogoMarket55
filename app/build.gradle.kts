@@ -11,14 +11,11 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
-val geminiKey        = localProperties.getProperty("GEMINI_API_KEY")  ?: ""
-val finnhubKey       = localProperties.getProperty("FINNHUB_KEY")     ?: ""
-val groqKey          = localProperties.getProperty("GROQ_API_KEY")    ?: ""
-val smtpEmail        = localProperties.getProperty("SMTP_EMAIL")      ?: ""
-val smtpPassword     = localProperties.getProperty("SMTP_PASSWORD")   ?: ""
+// Only release-signing values come from local.properties. API keys and the email password are
+// NOT compiled into the app: they live in Firebase Functions secrets (see functions/README.md).
 val storeFileValue   = localProperties.getProperty("STORE_FILE")      ?: "C:/Trade APP/myapp-release.jks"
 val storePasswordValue = localProperties.getProperty("STORE_PASSWORD") ?: ""
-val keyAliasValue    = localProperties.getProperty("KEY_                            ALIAS")       ?: "release"
+val keyAliasValue    = localProperties.getProperty("KEY_ALIAS")       ?: "release"
 val keyPasswordValue = localProperties.getProperty("KEY_PASSWORD")    ?: ""
 
 android {
@@ -33,11 +30,6 @@ android {
         versionName = "1.7.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "GEMINI_API_KEY",  "\"$geminiKey\"")
-        buildConfigField("String", "FINNHUB_KEY",     "\"$finnhubKey\"")
-        buildConfigField("String", "GROQ_API_KEY",    "\"$groqKey\"")
-        buildConfigField("String", "SMTP_EMAIL",      "\"$smtpEmail\"")
-        buildConfigField("String", "SMTP_PASSWORD",   "\"$smtpPassword\"")
     }
 
     signingConfigs {
@@ -124,8 +116,6 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
     implementation("com.google.android.gms:play-services-auth:21.2.0")
-    implementation("com.sun.mail:android-mail:1.6.7")
-    implementation("com.sun.mail:android-activation:1.6.7")
     implementation("androidx.navigation:navigation-fragment:2.7.7")
     implementation("androidx.navigation:navigation-ui:2.7.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.7.0")

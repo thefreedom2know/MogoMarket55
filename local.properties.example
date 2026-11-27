@@ -1,19 +1,9 @@
 # Copy this file to local.properties (it is ignored by git) and fill in your own values.
-# local.properties is the ONLY place for secrets. Never commit real keys.
+# local.properties only holds the release-signing values. Never commit it.
 
-# Finnhub - https://finnhub.io  (stock quotes; without it the app falls back to free Yahoo data)
-FINNHUB_KEY=
-
-# Groq - https://console.groq.com  (free AI chat; preferred, Gemini is the fallback)
-GROQ_API_KEY=
-
-# Google Gemini - https://aistudio.google.com  (AI chat)
-GEMINI_API_KEY=
-
-
-# Email sending (password reset, daily summary) - Gmail address and an app password
-SMTP_EMAIL=
-SMTP_PASSWORD=
+# API keys (Finnhub, Groq, Gemini) and the email password do NOT go here any more: anything
+# compiled into the APK can be extracted. They are Firebase Functions secrets - see
+# functions/README.md.
 
 # Release signing (optional)
 STORE_FILE=

@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Build outputs and signing keys never belong in git
+/release/
+/app/release/
+*.apk
+*.aab
+*.jks
+*.keystore

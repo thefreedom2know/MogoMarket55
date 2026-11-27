@@ -25,17 +25,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import javax.mail.Message;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
 
 public class DailySummaryEmailService extends BroadcastReceiver {
 
@@ -196,64 +187,11 @@ public class DailySummaryEmailService extends BroadcastReceiver {
     private static boolean sendEmail(Context context, String toEmail, String subject,
                                      String plainText, String html,
                                      boolean showSuccessNotification) {
-        String senderEmail = ApiConfig.smtpEmail();
-        String senderPassword = ApiConfig.smtpPassword();
-        if (senderEmail.trim().isEmpty() || senderPassword.trim().isEmpty()) {
-            return sendViaServer(context, toEmail, subject, plainText, html,
-                    showSuccessNotification);
-        }
-
-        try {
-            Properties props = new Properties();
-            props.put("mail.smtp.auth", "true");
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.host", "smtp.gmail.com");
-            props.put("mail.smtp.port", "587");
-            props.put("mail.smtp.ssl.trust", "smtp.gmail.com");
-            props.put("mail.smtp.connectiontimeout", "15000");
-            props.put("mail.smtp.timeout", "15000");
-            props.put("mail.smtp.writetimeout", "15000");
-
-            Session session = Session.getInstance(props, new javax.mail.Authenticator() {
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(senderEmail, senderPassword);
-                }
-            });
-
-            MimeBodyPart textPart = new MimeBodyPart();
-            textPart.setText(plainText, "UTF-8");
-            MimeBodyPart htmlPart = new MimeBodyPart();
-            htmlPart.setContent(html, "text/html; charset=UTF-8");
-            MimeMultipart multipart = new MimeMultipart("alternative");
-            multipart.addBodyPart(textPart);
-            multipart.addBodyPart(htmlPart); // last part = preferred by mail clients
-
-            MimeMessage message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(senderEmail, "MogoMarket"));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
-            message.setSubject(subject, "UTF-8");
-            message.setContent(multipart);
-            Transport.send(message);
-
-            Log.i(TAG, "Daily summary sent: " + subject);
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                    .remove(KEY_LAST_ERROR).apply();
-            if (showSuccessNotification) {
-                showNotification(context, "Daily summary sent", "The email was sent to " + toEmail);
-            }
-            return true;
-        } catch (Exception e) {
-            if (e instanceof javax.mail.AuthenticationFailedException) {
-                return fail(context, "Gmail rejected the sender login. The sender needs a Gmail "
-                        + "App Password (2-step verification on), not the normal password.");
-            }
-            return fail(context, "Sending failed: " + describe(e));
-        }
+        return sendViaServer(context, toEmail, subject, plainText, html, showSuccessNotification);
     }
 
     /**
-     * No SMTP login inside the app: the "sendSummaryEmail" Firebase Function sends the mail
+     * The app holds no SMTP login: the "sendSummaryEmail" Firebase Function sends the mail
      * with credentials stored on the server (see functions/README.md).
      */
     private static boolean sendViaServer(Context context, String toEmail, String subject,
@@ -281,8 +219,7 @@ public class DailySummaryEmailService extends BroadcastReceiver {
                         (com.google.firebase.functions.FirebaseFunctionsException) cause;
                 reason = fe.getCode() == com.google.firebase.functions.FirebaseFunctionsException
                         .Code.NOT_FOUND
-                        ? "The email server function is not deployed yet (see functions/README.md), "
-                        + "or add SMTP_EMAIL / SMTP_PASSWORD to local.properties."
+                        ? "The email server function is not deployed yet (see functions/README.md)."
                         : fe.getMessage();
             }
             return fail(context, "Server email failed: " + reason);
