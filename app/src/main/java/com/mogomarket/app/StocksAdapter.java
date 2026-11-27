@@ -73,6 +73,8 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
     private OnPortfolioSummaryListener portfolioSummaryListener;
     private final Map<String, StockViewHolder> visibleHolders = new HashMap<>();
     private double cashBalance;
+    /** View-only mode for a portfolio someone shared with this user: no edit, close or screenshots. */
+    private boolean readOnly;
     private final OkHttpClient client = FinnhubProxy.client();
 
     public StocksAdapter(List<StockData> stocks, OnStockClickListener listener) {
@@ -87,6 +89,11 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
     public void setPortfolioSummaryListener(OnPortfolioSummaryListener listener) {
         this.portfolioSummaryListener = listener;
         updatePortfolioSummary();
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
+        notifyDataSetChanged();
     }
 
     public void setCashBalance(double cashBalance) {
@@ -245,7 +252,16 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
             holder.holdingDaysText.setContentDescription(
                     "Open date missing. Tap to add it and calculate days in trade");
         }
-        holder.holdingDaysText.setOnClickListener(view -> showEditDialog(ctx, stock));
+        if (readOnly) {
+            holder.holdingDaysText.setOnClickListener(null);
+            holder.holdingDaysText.setClickable(false);
+            if (stock.openedAt <= 0) {
+                holder.holdingDaysText.setText("-");
+                holder.holdingDaysText.setTextColor(textSecondary);
+            }
+        } else {
+            holder.holdingDaysText.setOnClickListener(view -> showEditDialog(ctx, stock));
+        }
 
         if (stock.notes != null && !stock.notes.trim().isEmpty()) {
             holder.notesText.setText("\uD83D\uDCDD " + stock.notes.trim());
@@ -339,6 +355,15 @@ public class StocksAdapter extends RecyclerView.Adapter<StocksAdapter.StockViewH
             if (listener.supportsTradeDetails()) listener.onManageScreenshots(stock);
         });
         holder.itemView.setOnClickListener(view -> showTradeDetailsDialog(ctx, stock));
+        holder.btnEdit.setVisibility(readOnly ? View.GONE : View.VISIBLE);
+        holder.btnDelete.setVisibility(readOnly ? View.GONE : View.VISIBLE);
+        if (readOnly) {
+            holder.btnScreenshots.setVisibility(View.GONE);
+            holder.itemView.setOnLongClickListener(null);
+            holder.itemView.setLongClickable(false);
+            updatePortfolioAllocations();
+            return;
+        }
         holder.itemView.setOnLongClickListener(view -> {
             PopupMenu popupMenu = new PopupMenu(ctx, view);
             whiteIcon(ctx, popupMenu.getMenu().add("Edit position"), R.drawable.baseline_edit_24).setOnMenuItemClickListener(item -> {

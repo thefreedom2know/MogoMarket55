@@ -383,10 +383,13 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
     private void showPortfolioShareOptions() {
         new AlertDialog.Builder(requireContext())
                 .setTitle("Share trades")
-                .setItems(new String[]{"Share full portfolio", "Share one trade"}, (dialog, which) -> {
+                .setItems(new String[]{"Share full portfolio (live)", "Share one trade",
+                        "Who sees my portfolio"}, (dialog, which) -> {
                     if (which == 0) {
                         chooseShareDestination("My Mogo Market portfolio",
-                                buildPortfolioShareText(), new ArrayList<>(stocks));
+                                buildPortfolioShareText(), new ArrayList<>(stocks), true);
+                    } else if (which == 2) {
+                        showLiveViewers();
                     } else if (stocks.isEmpty()) {
                         Toast.makeText(getContext(), "There are no open trades to share",
                                 Toast.LENGTH_SHORT).show();
@@ -404,7 +407,8 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
                                         chooseShareDestination(
                                                 "Mogo Market trade: " + stocks.get(index).symbol,
                                                 buildTradeShareText(stocks.get(index)),
-                                                java.util.Collections.singletonList(stocks.get(index))))
+                                                java.util.Collections.singletonList(stocks.get(index)),
+                                                false))
                                 .setNegativeButton("Cancel", null)
                                 .show();
                     }
@@ -413,27 +417,25 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
                 .show();
     }
 
-    private void chooseShareDestination(String title, String text, List<StockData> trades) {
+    private void chooseShareDestination(String title, String text, List<StockData> trades,
+                                        boolean live) {
+        String inside = live ? "Inside Mogo Market (updates live)" : "Inside Mogo Market";
         new AlertDialog.Builder(requireContext())
                 .setTitle("Share")
-                .setItems(new String[]{"Inside Mogo Market", "Outside the app", "Both"}, (dialog, choice) -> {
+                .setItems(new String[]{inside, "Outside the app", "Both"}, (dialog, choice) -> {
                     if (choice == 0) {
-                        promptRecipientEmail(title, trades);
+                        promptRecipientEmail(title, trades, live, null);
                     } else if (choice == 1) {
                         shareText(text);
                     } else if (choice == 2) {
-                        promptRecipientEmail(title, trades, () -> shareText(text));
+                        promptRecipientEmail(title, trades, live, () -> shareText(text));
                     }
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
-    private void promptRecipientEmail(String title, List<StockData> trades) {
-        promptRecipientEmail(title, trades, null);
-    }
-
-    private void promptRecipientEmail(String title, List<StockData> trades,
+    private void promptRecipientEmail(String title, List<StockData> trades, boolean live,
                                       @Nullable Runnable afterSend) {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null || currentUser.isAnonymous()) {
@@ -442,7 +444,7 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
             if (afterSend != null) afterSend.run();
             return;
         }
-        if (trades.isEmpty()) {
+        if (!live && trades.isEmpty()) {
             Toast.makeText(getContext(), "There are no open trades to share",
                     Toast.LENGTH_SHORT).show();
             if (afterSend != null) afterSend.run();
@@ -459,7 +461,11 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
 
         AlertDialog dialog = new AlertDialog.Builder(requireContext())
                 .setTitle("Send inside Mogo Market")
-                .setMessage("Enter the email address used by the recipient's Mogo Market account.")
+                .setMessage(live
+                        ? "Enter the email address used by the recipient's Mogo Market account. "
+                        + "They will see your portfolio and closed trades update live, "
+                        + "until you stop sharing."
+                        : "Enter the email address used by the recipient's Mogo Market account.")
                 .setView(emailInput)
                 .setPositiveButton("Send", null)
                 .setNegativeButton("Cancel", null)
@@ -472,7 +478,11 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
                         return;
                     }
                     dialog.dismiss();
-                    sendInAppTradeShare(email, title, trades, afterSend);
+                    if (live) {
+                        startLivePortfolioShare(email, afterSend);
+                    } else {
+                        sendInAppTradeShare(email, title, trades, afterSend);
+                    }
                 }));
         dialog.show();
     }
@@ -543,6 +553,99 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
         if (afterSend != null) afterSend.run();
     }
 
+    /** Gives the recipient live, read-only access to this portfolio (see LivePortfolioShare). */
+    private void startLivePortfolioShare(String recipientEmail, @Nullable Runnable afterSend) {
+        FirebaseUser owner = FirebaseAuth.getInstance().getCurrentUser();
+        if (owner == null) {
+            if (afterSend != null) afterSend.run();
+            return;
+        }
+        Toast.makeText(getContext(), "Sharing portfolio...", Toast.LENGTH_SHORT).show();
+        FirebaseDatabase.getInstance().getReference("user-emails")
+                .child(emailKey(recipientEmail)).get()
+                .addOnSuccessListener(snapshot -> {
+                    String recipientUid = snapshot.getValue(String.class);
+                    if (recipientUid == null || recipientUid.isEmpty()) {
+                        if (isAdded() && getContext() != null) {
+                            Toast.makeText(getContext(), "No Mogo Market user found with "
+                                            + "that email (they must open the updated app once)",
+                                    Toast.LENGTH_LONG).show();
+                        }
+                        return;
+                    }
+                    if (recipientUid.equals(owner.getUid())) {
+                        if (isAdded() && getContext() != null) {
+                            Toast.makeText(getContext(), "That's your own account",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                        return;
+                    }
+                    LivePortfolioShare.start(owner.getUid(), owner.getEmail(),
+                                    recipientUid, recipientEmail)
+                            .addOnSuccessListener(unused -> {
+                                if (!isAdded() || getContext() == null) return;
+                                Toast.makeText(getContext(), recipientEmail
+                                                + " now sees your portfolio live",
+                                        Toast.LENGTH_LONG).show();
+                            })
+                            .addOnFailureListener(this::showShareError);
+                })
+                .addOnFailureListener(this::showShareError);
+        if (afterSend != null) afterSend.run();
+    }
+
+    /** Lists who can see this portfolio live; tap someone to stop sharing with them. */
+    private void showLiveViewers() {
+        FirebaseUser owner = FirebaseAuth.getInstance().getCurrentUser();
+        if (owner == null || owner.isAnonymous()) {
+            Toast.makeText(getContext(), "Sign in to share inside Mogo Market",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        LivePortfolioShare.viewersOf(owner.getUid()).get()
+                .addOnSuccessListener(snapshot -> {
+                    if (!isAdded() || getContext() == null) return;
+                    List<String> viewerUids = new ArrayList<>();
+                    List<String> labels = new ArrayList<>();
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        String email = child.child("email").getValue(String.class);
+                        viewerUids.add(child.getKey());
+                        labels.add(email == null || email.isEmpty() ? "Mogo Market user" : email);
+                    }
+                    if (viewerUids.isEmpty()) {
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle("Who sees my portfolio")
+                                .setMessage("Your portfolio isn't shared live with anyone.")
+                                .setPositiveButton("OK", null)
+                                .show();
+                        return;
+                    }
+                    new AlertDialog.Builder(requireContext())
+                            .setTitle("Who sees my portfolio")
+                            .setItems(labels.toArray(new String[0]), (dialog, index) ->
+                                    new AlertDialog.Builder(requireContext())
+                                            .setTitle("Stop sharing?")
+                                            .setMessage(labels.get(index)
+                                                    + " will no longer see your portfolio.")
+                                            .setPositiveButton("Stop sharing", (d, w) ->
+                                                    LivePortfolioShare.stop(owner.getUid(),
+                                                                    viewerUids.get(index))
+                                                            .addOnSuccessListener(unused -> {
+                                                                if (!isAdded() || getContext() == null) return;
+                                                                Toast.makeText(getContext(),
+                                                                        "Stopped sharing with "
+                                                                                + labels.get(index),
+                                                                        Toast.LENGTH_SHORT).show();
+                                                            })
+                                                            .addOnFailureListener(this::showShareError))
+                                            .setNegativeButton("Cancel", null)
+                                            .show())
+                            .setPositiveButton("Close", null)
+                            .show();
+                })
+                .addOnFailureListener(this::showShareError);
+    }
+
     private void showShareError(Exception error) {
         if (!isAdded() || getContext() == null) return;
         String message = error.getLocalizedMessage();
@@ -574,8 +677,24 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
             Toast.makeText(getContext(), "Sign in to view shared trades", Toast.LENGTH_SHORT).show();
             return;
         }
+        // Live portfolios first; if that node isn't readable yet, fall back to the old inbox only.
+        LivePortfolioShare.sharedWith(currentUser.getUid()).get()
+                .addOnSuccessListener(live -> showIncomingTradeShares(currentUser.getUid(), live))
+                .addOnFailureListener(error -> showIncomingTradeShares(currentUser.getUid(), null));
+    }
+
+    private void showIncomingTradeShares(String myUid, @Nullable DataSnapshot live) {
+        List<String> liveOwnerUids = new ArrayList<>();
+        List<String> liveOwnerEmails = new ArrayList<>();
+        if (live != null) {
+            for (DataSnapshot child : live.getChildren()) {
+                String email = child.child("ownerEmail").getValue(String.class);
+                liveOwnerUids.add(child.getKey());
+                liveOwnerEmails.add(email == null ? "" : email);
+            }
+        }
         FirebaseDatabase.getInstance().getReference("trade-shares")
-                .child(currentUser.getUid()).get()
+                .child(myUid).get()
                 .addOnSuccessListener(snapshot -> {
                     if (!isAdded() || getContext() == null) return;
                     List<Map<?, ?>> shares = new ArrayList<>();
@@ -586,7 +705,7 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
                     // Newest first.
                     shares.sort((a, b) -> Double.compare(valueAsDouble(b.get("createdAt")),
                             valueAsDouble(a.get("createdAt"))));
-                    if (shares.isEmpty()) {
+                    if (shares.isEmpty() && liveOwnerUids.isEmpty()) {
                         new AlertDialog.Builder(requireContext())
                                 .setTitle("Shared with me")
                                 .setMessage("No trades have been shared with you yet.")
@@ -594,20 +713,53 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
                                 .show();
                         return;
                     }
-                    String[] labels = new String[shares.size()];
+                    int liveCount = liveOwnerUids.size();
+                    String[] labels = new String[liveCount + shares.size()];
+                    for (int i = 0; i < liveCount; i++) {
+                        String owner = liveOwnerEmails.get(i);
+                        labels[i] = "\u25CF LIVE  " + (owner.isEmpty() ? "Mogo Market user" : owner)
+                                + " — full portfolio";
+                    }
                     for (int i = 0; i < shares.size(); i++) {
                         Map<?, ?> share = shares.get(i);
                         String sender = valueAsString(share.get("senderEmail"));
                         String shareTitle = valueAsString(share.get("title"));
-                        labels[i] = (sender.isEmpty() ? "Mogo Market user" : sender) + " — "
+                        labels[liveCount + i] = (sender.isEmpty() ? "Mogo Market user" : sender) + " — "
                                 + (shareTitle.isEmpty() ? "Shared trade" : shareTitle);
                     }
-                    new AlertDialog.Builder(requireContext())
+                    AlertDialog listDialog = new AlertDialog.Builder(requireContext())
                             .setTitle("Shared with me")
-                            .setItems(labels, (dialog, index) ->
-                                    showIncomingTradeDetails(shares.get(index)))
+                            .setItems(labels, (dialog, index) -> {
+                                if (index < liveCount) {
+                                    SharedPortfolioFragment.open(this, liveOwnerUids.get(index),
+                                            liveOwnerEmails.get(index));
+                                } else {
+                                    showIncomingTradeDetails(shares.get(index - liveCount));
+                                }
+                            })
                             .setPositiveButton("Close", null)
-                            .show();
+                            .create();
+                    listDialog.show();
+                    if (liveCount > 0 && listDialog.getListView() != null) {
+                        // Long-press a live portfolio to remove it from this list.
+                        listDialog.getListView().setOnItemLongClickListener((parent, row, index, id) -> {
+                            if (index >= liveCount) return false;
+                            String owner = liveOwnerEmails.get(index);
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle("Stop following?")
+                                    .setMessage("You will no longer see "
+                                            + (owner.isEmpty() ? "this" : owner + "'s")
+                                            + " portfolio.")
+                                    .setPositiveButton("Stop following", (d, w) -> {
+                                        listDialog.dismiss();
+                                        LivePortfolioShare.stop(liveOwnerUids.get(index), myUid)
+                                                .addOnFailureListener(this::showShareError);
+                                    })
+                                    .setNegativeButton("Cancel", null)
+                                    .show();
+                            return true;
+                        });
+                    }
                 })
                 .addOnFailureListener(error -> {
                     if (isAdded() && getContext() != null) {
