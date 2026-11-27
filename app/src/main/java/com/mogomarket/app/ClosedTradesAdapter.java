@@ -51,6 +51,14 @@ public class ClosedTradesAdapter extends RecyclerView.Adapter<ClosedTradesAdapte
         notifyDataSetChanged();
     }
 
+    /** View-only mode for a portfolio someone shared with this user. */
+    private boolean readOnly;
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
+        notifyDataSetChanged();
+    }
+
     public void setDeleteListener(OnTradeDeleteListener listener) {
         this.deleteListener = listener;
     }
@@ -238,6 +246,12 @@ public class ClosedTradesAdapter extends RecyclerView.Adapter<ClosedTradesAdapte
         } else {
             holder.percentOfPortfolioText.setVisibility(View.GONE);
         }
+
+        int actionVisibility = readOnly ? View.GONE : View.VISIBLE;
+        holder.editButton.setVisibility(actionVisibility);
+        holder.screenshotsButton.setVisibility(actionVisibility);
+        if (holder.deleteButton != null) holder.deleteButton.setVisibility(actionVisibility);
+        if (readOnly) return;
 
         holder.editButton.setOnClickListener(v -> {
             if (editListener != null) editListener.onEditTrade(trade);

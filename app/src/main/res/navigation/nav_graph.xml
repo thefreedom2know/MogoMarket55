@@ -48,6 +48,12 @@
         tools:layout="@layout/portfolio_add_stock_fragment" />
 
     <fragment
+        android:id="@+id/sharedPortfolioFragment"
+        android:name="com.mogomarket.app.SharedPortfolioFragment"
+        android:label="Shared Portfolio"
+        tools:layout="@layout/fragment_shared_portfolio" />
+
+    <fragment
         android:id="@+id/pnlCalculatorFragment"
         android:name="com.mogomarket.app.PnlCalculatorFragment"
         android:label="PNL Calculator"
