@@ -20,6 +20,7 @@ public class DailySummaryEmailWorker extends Worker {
 
     private static final String KEY_MANUAL = "manual";
     private static final String KEY_NOTIFY = "notify";
+    private static final String KEY_WEEKLY = "weekly";
     private static final int MAX_ATTEMPTS = 3;
 
     public DailySummaryEmailWorker(@NonNull Context context, @NonNull WorkerParameters params) {
@@ -27,17 +28,27 @@ public class DailySummaryEmailWorker extends Worker {
     }
 
     public static void enqueue(Context context, boolean force) {
-        schedule(context, false, false, "daily_summary_scheduled");
+        schedule(context, false, false, false, "daily_summary_scheduled");
     }
 
     public static void enqueueManual(Context context, boolean showSuccessNotification) {
-        schedule(context, true, showSuccessNotification, "daily_summary_manual");
+        schedule(context, true, showSuccessNotification, false, "daily_summary_manual");
     }
 
-    private static void schedule(Context context, boolean manual, boolean notify, String name) {
+    public static void enqueueWeekly(Context context) {
+        schedule(context, false, false, true, "weekly_summary_scheduled");
+    }
+
+    public static void enqueueWeeklyManual(Context context, boolean showSuccessNotification) {
+        schedule(context, true, showSuccessNotification, true, "weekly_summary_manual");
+    }
+
+    private static void schedule(Context context, boolean manual, boolean notify, boolean weekly,
+                                 String name) {
         Data input = new Data.Builder()
                 .putBoolean(KEY_MANUAL, manual)
                 .putBoolean(KEY_NOTIFY, notify)
+                .putBoolean(KEY_WEEKLY, weekly)
                 .build();
         OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(DailySummaryEmailWorker.class)
                 .setInputData(input)
@@ -55,13 +66,16 @@ public class DailySummaryEmailWorker extends Worker {
         Context context = getApplicationContext();
         boolean manual = getInputData().getBoolean(KEY_MANUAL, false);
         boolean notify = getInputData().getBoolean(KEY_NOTIFY, false);
+        boolean weekly = getInputData().getBoolean(KEY_WEEKLY, false);
 
-        long[] window = DailySummaryEmailService.defaultReportWindow();
-        boolean sent = DailySummaryEmailService.sendSummaryNow(context, window[0], window[1], notify);
+        long[] window = weekly ? DailySummaryEmailService.weeklyReportWindow()
+                : DailySummaryEmailService.defaultReportWindow();
+        boolean sent = DailySummaryEmailService.sendSummaryNow(
+                context, window[0], window[1], notify, weekly);
         if (sent) return Result.success();
 
         if (manual || getRunAttemptCount() + 1 >= MAX_ATTEMPTS) {
-            DailySummaryEmailService.showFailureNotification(context);
+            DailySummaryEmailService.showFailureNotification(context, weekly);
             return Result.failure();
         }
         return Result.retry();

@@ -4,7 +4,7 @@
  * Server side of MogoMarket: keeps the AI keys and the email password OFF the phone.
  *
  *  - aiChat           : Groq first, Gemini as a fallback (same behaviour as the app's local mode)
- *  - sendSummaryEmail : sends the daily summary through Gmail SMTP
+ *  - sendSummaryEmail : sends the daily and weekly summaries through Gmail SMTP
  *  - finnhub          : read-only proxy for Finnhub quotes, symbol search and company profiles
  *
  * Both require a logged-in user and are rate limited per user.

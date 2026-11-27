@@ -46,6 +46,16 @@ public class PortfolioDailyPerformance {
      */
     public static Result calculate(List<StockData> openTrades, List<StockData> closedTrades,
                                    long startTimestamp, long endTimestamp) {
+        return calculate(openTrades, closedTrades, startTimestamp, endTimestamp, false);
+    }
+
+    /**
+     * With {@code weekly} the "daily" fields hold the change since {@code startTimestamp}
+     * (the start of the week) instead of since the previous close. A position opened during
+     * the week is measured from its entry.
+     */
+    public static Result calculate(List<StockData> openTrades, List<StockData> closedTrades,
+                                   long startTimestamp, long endTimestamp, boolean weekly) {
         Result result = new Result();
         if (openTrades == null) return result;
 
@@ -60,8 +70,10 @@ public class PortfolioDailyPerformance {
             counted.add(stock);
             String symbol = quoteSymbol(stock.symbol);
             // Crypto pairs (BINANCE:XXX) are not on Yahoo: those fall back to stored values.
-            quotes.add(new DailySummaryReport.Quote(stock.symbol == null ? "" : stock.symbol,
-                    symbol.contains(":") ? "" : symbol));
+            DailySummaryReport.Quote quote = new DailySummaryReport.Quote(
+                    stock.symbol == null ? "" : stock.symbol, symbol.contains(":") ? "" : symbol);
+            if (weekly) quote.changeSince = startTimestamp;
+            quotes.add(quote);
         }
         List<DailySummaryReport.Quote> toLoad = new ArrayList<>();
         for (DailySummaryReport.Quote q : quotes) if (!q.symbol.isEmpty()) toLoad.add(q);
@@ -74,12 +86,25 @@ public class PortfolioDailyPerformance {
 
             double price = q.ok() ? q.price
                     : (stock.currentPrice > 0 ? stock.currentPrice : stock.buyPrice);
-            double dayPercent = q.ok() ? q.changePercent
-                    : (Double.isNaN(stock.dailyProfitLossPercent) ? 0 : stock.dailyProfitLossPercent);
-
             double value = stock.tradeAmount * price / stock.buyPrice;
-            double factor = 1.0 + dayPercent / 100.0;
-            double previousValue = factor > 0 ? value / factor : value;
+            double dayPercent;
+            double previousValue;
+            if (weekly && stock.openedAt > 0 && stock.openedAt >= startTimestamp) {
+                // Bought this week: the whole move since entry belongs to this week.
+                previousValue = stock.tradeAmount;
+                dayPercent = (value / stock.tradeAmount - 1.0) * 100.0;
+            } else {
+                if (q.ok()) {
+                    dayPercent = q.changePercent;
+                } else if (weekly) {
+                    dayPercent = 0; // no weekly history (e.g. crypto): counted as unchanged
+                } else {
+                    dayPercent = Double.isNaN(stock.dailyProfitLossPercent)
+                            ? 0 : stock.dailyProfitLossPercent;
+                }
+                double factor = 1.0 + dayPercent / 100.0;
+                previousValue = factor > 0 ? value / factor : value;
+            }
 
             Position position = new Position();
             position.symbol = stock.symbol == null ? "N/A" : stock.symbol;

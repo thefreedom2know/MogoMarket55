@@ -243,4 +243,30 @@ public class ExampleUnitTest {
         trade.openedAt = trade.closedAt - openedDaysBeforeClose * 86_400_000L;
         return trade;
     }
+
+    @Test
+    public void weeklySummaryRunsOnTheChosenDayAndTime() {
+        Calendar now = Calendar.getInstance();
+        now.set(2026, Calendar.NOVEMBER, 27, 20, 0, 0); // Friday evening
+        now.set(Calendar.MILLISECOND, 0);
+        Calendar next = DailySummaryEmailService.nextWeeklyRun(now, Calendar.SATURDAY, 9, 0);
+        assertEquals(Calendar.SATURDAY, next.get(Calendar.DAY_OF_WEEK));
+        assertEquals(28, next.get(Calendar.DAY_OF_MONTH));
+        assertEquals(9, next.get(Calendar.HOUR_OF_DAY));
+
+        // Same day but the time already passed: next week.
+        Calendar later = DailySummaryEmailService.nextWeeklyRun(now, Calendar.FRIDAY, 9, 0);
+        assertEquals(Calendar.FRIDAY, later.get(Calendar.DAY_OF_WEEK));
+        assertEquals(Calendar.DECEMBER, later.get(Calendar.MONTH));
+        assertEquals(4, later.get(Calendar.DAY_OF_MONTH));
+    }
+
+    @Test
+    public void weeklyChangeUsesTheLastCloseBeforeTheWeekStarted() {
+        long[] ts = {100, 200, 300, 400, 500};
+        double[] closes = {10, 11, Double.NaN, 13, 14};
+        assertEquals(11, YahooQuoteMath.closeBefore(ts, closes, 350), 0.001); // skips the gap
+        assertEquals(13, YahooQuoteMath.closeBefore(ts, closes, 450), 0.001);
+        assertTrue(Double.isNaN(YahooQuoteMath.closeBefore(ts, closes, 100)));
+    }
 }

@@ -68,4 +68,39 @@ public class YahooQuoteMath {
                 ? (price - previous) / previous * 100.0 : Double.NaN;
         return quote;
     }
+    /**
+     * The last valid close strictly before {@code cutoffSec} (Unix seconds), or NaN.
+     * Used by the weekly summary: the close just before the week started.
+     */
+    public static double closeBefore(long[] timestampsSec, double[] closes, long cutoffSec) {
+        if (timestampsSec == null || closes == null) return Double.NaN;
+        int n = Math.min(timestampsSec.length, closes.length);
+        for (int i = n - 1; i >= 0; i--) {
+            if (timestampsSec[i] >= cutoffSec) continue;
+            double c = closes[i];
+            if (!Double.isNaN(c) && c > 0) return c;
+        }
+        return Double.NaN;
+    }
+
+    /** Change in percent since the last close before {@code cutoffMillis} (NaN if unknown). */
+    public static double changeSince(Object item, double price, long cutoffMillis) {
+        if (!(item instanceof JSONObject) || Double.isNaN(price) || price <= 0) return Double.NaN;
+        JSONObject obj = (JSONObject) item;
+        JSONArray ts = obj.optJSONArray("timestamp");
+        JSONObject indicators = obj.optJSONObject("indicators");
+        JSONArray quotes = indicators != null ? indicators.optJSONArray("quote") : null;
+        JSONObject first = quotes != null ? quotes.optJSONObject(0) : null;
+        JSONArray closes = first != null ? first.optJSONArray("close") : null;
+        if (ts == null || closes == null) return Double.NaN;
+        int n = Math.min(ts.length(), closes.length());
+        long[] t = new long[n];
+        double[] c = new double[n];
+        for (int i = 0; i < n; i++) {
+            t[i] = ts.optLong(i, Long.MAX_VALUE);
+            c[i] = closes.isNull(i) ? Double.NaN : closes.optDouble(i, Double.NaN);
+        }
+        double reference = closeBefore(t, c, cutoffMillis / 1000L);
+        return Double.isNaN(reference) ? Double.NaN : (price - reference) / reference * 100.0;
+    }
 }
