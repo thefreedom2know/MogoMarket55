@@ -275,6 +275,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private CombinedChart volumeChart;
     private boolean volumePaneShown;
     private TextView crosshairDetails;
+    /** Identifies the data last animated in, so redraws of the same data don't replay the intro. */
+    private String lastAnimatedKey = "";
     private List<Float> pendingVolumes = new ArrayList<>();
     private float lastPrice = 0f;
     private boolean isManualSelection = false;
@@ -834,8 +836,13 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 }
             }
             @Override public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {}
-            @Override public void onChartScale(MotionEvent me, float scaleX, float scaleY) {}
-            @Override public void onChartTranslate(MotionEvent me, float dX, float dY) {}
+            // Keep the lower panes in step in the same frame as the price chart (incl. fling).
+            @Override public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
+                syncIndicatorViewport();
+            }
+            @Override public void onChartTranslate(MotionEvent me, float dX, float dY) {
+                syncIndicatorViewport();
+            }
         };
         if (candleStickChart != null) {
             candleStickChart.setOnChartGestureListener(gestureListener);
@@ -1087,7 +1094,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         candleStickChart.setDragEnabled(true);
         candleStickChart.setScaleEnabled(true);
         candleStickChart.setScaleXEnabled(true);
-        candleStickChart.setScaleYEnabled(true);
+        // Zoom only sideways (like pro charting apps); the price axis auto-fits what is visible.
+        // Y zoom picked by finger angle made pinches jump between X and Y zoom.
+        candleStickChart.setScaleYEnabled(false);
+        candleStickChart.setAutoScaleMinMaxEnabled(true);
         candleStickChart.setPinchZoom(false);
         candleStickChart.setDoubleTapToZoomEnabled(false);
         candleStickChart.setDragDecelerationEnabled(true);
@@ -1103,7 +1113,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setSpaceMin(0.5f);
         xAxis.setSpaceMax(0.5f);
-        xAxis.setLabelCount(5, true);
+        xAxis.setLabelCount(5, false);
+        xAxis.setGranularityEnabled(true);
+        xAxis.setGranularity(1f);
+        xAxis.setAvoidFirstLastClipping(true);
         xAxis.setValueFormatter(new ValueFormatter() {
             @Override public String getFormattedValue(float value) {
                 int i = (int) value;
@@ -1156,7 +1169,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         lineChart.setDragEnabled(true);
         lineChart.setScaleEnabled(true);
         lineChart.setScaleXEnabled(true);
-        lineChart.setScaleYEnabled(true);
+        // Zoom only sideways (like pro charting apps); the price axis auto-fits what is visible.
+        // Y zoom picked by finger angle made pinches jump between X and Y zoom.
+        lineChart.setScaleYEnabled(false);
+        lineChart.setAutoScaleMinMaxEnabled(true);
         lineChart.setPinchZoom(false);
         lineChart.setDoubleTapToZoomEnabled(false);
         lineChart.setDragDecelerationEnabled(true);
@@ -1172,7 +1188,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setSpaceMin(0.5f);
         xAxis.setSpaceMax(0.5f);
-        xAxis.setLabelCount(5, true);
+        xAxis.setLabelCount(5, false);
+        xAxis.setGranularityEnabled(true);
+        xAxis.setGranularity(1f);
+        xAxis.setAvoidFirstLastClipping(true);
         xAxis.setValueFormatter(new ValueFormatter() {
             @Override public String getFormattedValue(float value) {
                 int i = (int) value;
@@ -1203,6 +1222,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             // chart never refreshes the page.
             pullRefresh.addBlockedView(candleStickChart);
             pullRefresh.addBlockedView(lineChart);
+            pullRefresh.addBlockedView(volumeChart);
+            pullRefresh.addBlockedView(indicatorChart);
             pullRefresh.setRefreshAction(() -> fetchStockData(symbol, interval));
         }
 
@@ -1675,9 +1696,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             int ia = i1, ib = i2;
             if (ia > ib) { ia = i2; ib = i1; pa = d.p2; pb = d.p1; }
             float slope = (pb - pa) / (ib - ia);
+            // One point per candle (not just the two ends) so the auto-fitting price axis only
+            // counts the part of the line that is actually on screen.
             List<Entry> pts = new ArrayList<>();
-            pts.add(new Entry(ia, pa));
-            pts.add(new Entry(n - 1, pa + slope * (n - 1 - ia)));
+            for (int i = ia; i < n; i++) pts.add(new Entry(i, pa + slope * (i - ia)));
             LineDataSet t = new LineDataSet(pts, "");
             t.setColor(d.color);
             t.setLineWidth(d.width);
@@ -1747,6 +1769,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             legend.setEnabled(false);
         } else {
             legend.setEnabled(true);
+            legend.setVerticalAlignment(com.github.mikephil.charting.components.Legend.LegendVerticalAlignment.TOP);
+            legend.setHorizontalAlignment(com.github.mikephil.charting.components.Legend.LegendHorizontalAlignment.LEFT);
+            legend.setOrientation(com.github.mikephil.charting.components.Legend.LegendOrientation.HORIZONTAL);
+            legend.setDrawInside(true);
             legend.setCustom(items);
             legend.setTextColor(isChartDark ? DARK_TEXT_SEC : LIGHT_TEXT_SEC);
             legend.setTextSize(10f);
@@ -1807,17 +1833,25 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         setBottomMargin(volumeChart, volumeBottom);
         if (indicatorChart != null) indicatorChart.setVisibility(paneShown ? View.VISIBLE : View.GONE);
         if (volumeChart != null) volumeChart.setVisibility(volumePaneShown ? View.VISIBLE : View.GONE);
-        float l = dpToPx(48), r = dpToPx(8);
-        if (paneShown || volumePaneShown) {
-            if (candleStickChart != null) candleStickChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
-            if (lineChart != null) lineChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
-            if (indicatorChart != null) indicatorChart.setViewPortOffsets(l, dpToPx(14), r, dpToPx(4));
-            if (volumeChart != null) volumeChart.setViewPortOffsets(l, dpToPx(4), r, dpToPx(4));
-        } else {
-            if (candleStickChart != null) candleStickChart.resetViewPortOffsets();
-            if (lineChart != null) lineChart.resetViewPortOffsets();
-        }
+        // Fixed offsets always: auto offsets are recomputed whenever the price labels change
+        // width (every frame while panning with an auto-fitting axis), which shook the chart.
+        float l = priceAxisWidth(), r = dpToPx(8);
+        if (candleStickChart != null) candleStickChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
+        if (lineChart != null) lineChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
+        if (indicatorChart != null) indicatorChart.setViewPortOffsets(l, dpToPx(14), r, dpToPx(4));
+        if (volumeChart != null) volumeChart.setViewPortOffsets(l, dpToPx(4), r, dpToPx(4));
         lastSyncScale = Float.NaN;
+    }
+
+    /** Left offset wide enough for the longest price label of the loaded data. */
+    private float priceAxisWidth() {
+        float max = 0f;
+        for (CandleEntry c : currentEntries) max = Math.max(max, Math.abs(c.getHigh()));
+        String sample = currentEntries.isEmpty() ? "0000.00"
+                : String.format(Locale.US, max >= 1000f ? "%.1f" : "%.2f", max * 1.1f);
+        Paint p = new Paint();
+        p.setTextSize(10f * getResources().getDisplayMetrics().density);
+        return Math.max(dpToPx(36), p.measureText(sample) + dpToPx(12));
     }
 
     private void setBottomMargin(View view, int bottom) {
@@ -2730,8 +2764,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         candleStickChart.setData(combinedData);
         applyOverlayExtras(candleStickChart, entries);
         attachMarker(candleStickChart);
-        candleStickChart.animateX(400);
-        candleStickChart.invalidate();
+        finishChartUpdate(candleStickChart, entries);
     }
 
     private void updateLineChart(List<CandleEntry> candleEntries) {
@@ -2742,7 +2775,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         ds.setLineWidth(2.5f);
         ds.setDrawCircles(false);
         ds.setDrawValues(false);
-        ds.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        ds.setMode(LineDataSet.Mode.LINEAR); // cubic curves are slow to redraw while panning
         ds.setHighLightColor(COLOR_PRIMARY);
         ds.setHighlightEnabled(true);
         ds.enableDashedHighlightLine(10f, 5f, 0f);
@@ -2758,8 +2791,27 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         lineChart.setData(lineData);
         applyOverlayExtras(lineChart, candleEntries);
         attachMarker(lineChart);
-        lineChart.animateX(400);
-        lineChart.invalidate();
+        finishChartUpdate(lineChart, candleEntries);
+    }
+
+    /**
+     * Common tail of a chart redraw. The intro animation plays only for newly loaded data
+     * (new symbol, range, candle size or chart type); toggles and edits redraw in place,
+     * keeping the user's zoom and scroll.
+     */
+    private void finishChartUpdate(com.github.mikephil.charting.charts.BarLineChartBase<?> chart,
+                                   List<CandleEntry> entries) {
+        layoutPanes();
+        chart.setVisibleXRangeMinimum(Math.min(10f, Math.max(1f, entries.size())));
+        String key = symbol + "|" + isCandleStick + "|" + entries.size() + "|"
+                + (currentTimestamps.isEmpty() ? 0 : currentTimestamps.get(0)) + "|"
+                + (currentTimestamps.isEmpty() ? 0 : currentTimestamps.get(currentTimestamps.size() - 1));
+        if (!key.equals(lastAnimatedKey)) {
+            lastAnimatedKey = key;
+            chart.fitScreen();
+            chart.animateX(400);
+        }
+        chart.invalidate();
     }
 
     private LineDataSet createMovingAverageDataSet() {
