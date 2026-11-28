@@ -47,7 +47,29 @@ Old `FINNHUB_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `SMTP_EMAIL` and `SMTP_PASS
 | Daily / weekly summary mail | `sendSummaryEmail` | 10 sent / day (failed tries don't count), only to the user's own address |
 | Quotes, search, company profile (Finnhub) | `finnhub` | 120 / minute; answers cached on the server |
 
+| Funds: find a fund by number or name | `fundsLookup` | 30 / minute |
+| Funds: refresh returns, fees, peers  | `fundsRefresh` | 30 / day |
+| Funds: daily check for new monthly data | `fundsMonthlyUpdate` (scheduled, 07:30 Israel time) | - |
+
 When the user is not logged in, quotes fall back to free Yahoo data.
+
+## Savings funds (קופות גמל, השתלמות, פנסיה)
+
+`funds.js` reads the Capital Market Authority's open data on data.gov.il (Gemel-Net, Pension-Net,
+Bituah-Net; no key needed) and Yahoo month-end closes of TA-125 and S&P 500.
+
+- The app saves each fund in `users/<uid>/funds/<key>` (fund number, balance and the month it is
+  correct for, fees, monthly deposit). The server writes only the `market` child of each fund:
+  latest month's returns, 12-month return, fees, exposures, the average of funds in the same track
+  (`peers`), index returns, and `estimatedValue` (balance grown by each later month's gross return,
+  minus 1/12 of the yearly fee, plus the monthly deposit).
+- `fund-watch/<uid>` lists users with funds, for the scheduled job; `fund-updates` holds the newest
+  month seen per dataset, so the job only does real work when a new month is published (or weekly).
+- Both nodes are written by the server only. **No Realtime Database rule changes are needed**:
+  `users/<uid>/funds` is covered by your existing `users/$uid` rule.
+- The scheduled function uses Cloud Scheduler (included in Blaze; 3 free jobs per month).
+
+Deploy with the same `firebase deploy --only functions`. Tests: `cd functions && npm test`.
 
 ## Password reset
 

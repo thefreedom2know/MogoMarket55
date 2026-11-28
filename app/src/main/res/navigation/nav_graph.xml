@@ -59,4 +59,10 @@
         android:label="PNL Calculator"
         tools:layout="@layout/fragment_pnl_calculator" />
 
+    <fragment
+        android:id="@+id/fundsFragment"
+        android:name="com.mogomarket.app.FundsFragment"
+        android:label="Funds"
+        tools:layout="@layout/fragment_funds" />
+
 </navigation>

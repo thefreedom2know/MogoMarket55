@@ -6,15 +6,20 @@
  *  - aiChat           : Groq first, Gemini as a fallback (same behaviour as the app's local mode)
  *  - sendSummaryEmail : sends the daily and weekly summaries through Gmail SMTP
  *  - finnhub          : read-only proxy for Finnhub quotes, symbol search and company profiles
+ *  - fundsLookup      : finds an Israeli savings fund (gemel / hishtalmut / pension) by number or name
+ *  - fundsRefresh     : updates returns, fees and peer comparison of the user's funds
+ *  - fundsMonthlyUpdate (scheduled): the same for every user, once new monthly data is out
  *
  * Both require a logged-in user and are rate limited per user.
  * Secrets are stored with `firebase functions:secrets:set` (see README.md).
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
+const funds = require("./funds");
 
 admin.initializeApp();
 
@@ -281,5 +286,72 @@ exports.finnhub = onCall(
     }
     // Never echo the upstream body on errors: it can mention the key.
     return res.ok ? { status: res.status, body } : { status: res.status, body: "{}" };
+  }
+);
+
+// ---------------------------------------------------------------------------------------------
+// Israeli savings funds (Gemel-Net / Pension-Net / Bituah-Net open data, see funds.js)
+
+const fundsLookupCalls = new Map();
+
+exports.fundsLookup = onCall({ maxInstances: 5, timeoutSeconds: 60 }, async (request) => {
+  const uid = requireAuth(request);
+  const now = Date.now();
+  const recent = (fundsLookupCalls.get(uid) || []).filter((t) => now - t < 60000);
+  if (recent.length >= 30) {
+    throw new HttpsError("resource-exhausted", "Too many searches, please wait a minute.");
+  }
+  recent.push(now);
+  fundsLookupCalls.set(uid, recent);
+
+  const data = request.data || {};
+  const fundId = Number(String(data.fundId || "").replace(/\D/g, ""));
+  const query = String(data.query || "").trim().slice(0, 60);
+  try {
+    if (fundId > 0) {
+      const ctx = funds.createContext();
+      const history = await ctx.history(fundId, data.source);
+      return { results: history.length ? [history[0]] : [] };
+    }
+    if (query.length >= 2) {
+      return { results: await funds.searchFunds(query) };
+    }
+  } catch (e) {
+    throw new HttpsError("unavailable", "Fund data is unavailable right now (" + String(e.message || e) + ").");
+  }
+  throw new HttpsError("invalid-argument", "Send a fund number or at least 2 letters of its name.");
+});
+
+exports.fundsRefresh = onCall({ maxInstances: 5, timeoutSeconds: 300, memory: "512MiB" }, async (request) => {
+  const uid = requireAuth(request);
+  await rateLimit(uid, "funds-refresh", 30, 24 * 60 * 60 * 1000);
+  return funds.refreshUser(admin.database(), uid, funds.createContext());
+});
+
+/**
+ * New monthly data is published around the middle of the next month, on no fixed day, so this
+ * checks every morning and refreshes everyone's funds when a dataset has a new month
+ * (and at least once a week, so late corrections are picked up).
+ */
+exports.fundsMonthlyUpdate = onSchedule(
+  { schedule: "every day 07:30", timeZone: "Asia/Jerusalem", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    const db = admin.database();
+    // Skip the run when no dataset has a new month and the last full run is under a week old.
+    const periods = await funds.latestPeriods();
+    const last = (await db.ref("fund-updates").get()).val() || {};
+    const unchanged = Object.keys(periods).every((k) => periods[k] === last[k]);
+    if (unchanged && last.at && Date.now() - last.at < 7 * 24 * 60 * 60 * 1000) return;
+
+    const watch = (await db.ref("fund-watch").get()).val() || {};
+    const ctx = funds.createContext();
+    for (const uid of Object.keys(watch)) {
+      try {
+        await funds.refreshUser(db, uid, ctx);
+      } catch (e) {
+        console.error("fundsMonthlyUpdate", uid, e);
+      }
+    }
+    await db.ref("fund-updates").set({ ...periods, at: Date.now() });
   }
 );
