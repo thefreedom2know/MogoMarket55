@@ -262,6 +262,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private boolean hasPendingPoint;
     private long pendingT;
     private float pendingP;
+    /** Data position under the crosshair (after magnet snapping), used to place drawing points. */
+    private int crosshairIndex = -1;
+    private float crosshairValue;
     private boolean showVolume;
     private boolean volumeColorByOpen; // false: vs previous close (daily), true: open to close
     private final List<Float> currentVolumes = new ArrayList<>();
@@ -386,6 +389,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         showVolume = prefs.getBoolean("chart_show_volume", true);
         volumeColorByOpen = prefs.getBoolean("chart_volume_color_open", false);
         volumeSeparate = prefs.getBoolean("chart_volume_separate", true);
+        magnetMode = prefs.getBoolean("chart_magnet", false);
         currentTFIndex = getTimeframeIndex(
                 prefs.getString(KEY_DEFAULT_TIMEFRAME, "1Y"));
         visibleChartRange = TIMEFRAMES[currentTFIndex][3];
@@ -822,7 +826,12 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             }
             @Override public void onChartSingleTapped(MotionEvent me) {
                 if (drawMode != 0) { handleDrawTap(me); return; }
-                if (isCrosshairActive) hideCrosshairInfo();
+                if (isCrosshairActive) { hideCrosshairInfo(); return; }
+                com.github.mikephil.charting.charts.BarLineChartBase<?> chart = visiblePriceChart();
+                if (chart != null) {
+                    int hit = findDrawingAt(chart, me.getX(), me.getY());
+                    if (hit >= 0) showDrawingEditor(hit);
+                }
             }
             @Override public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {}
             @Override public void onChartScale(MotionEvent me, float scaleX, float scaleY) {}
@@ -840,17 +849,6 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
 
     private void startCrosshair(com.github.mikephil.charting.charts.BarLineChartBase<?> chart,
                                 float touchX, float touchY) {
-        if (magnetMode) {
-            if (freeCrosshairOverlay != null) freeCrosshairOverlay.hide();
-            com.github.mikephil.charting.highlight.Highlight highlight =
-                    chart.getHighlightByTouchPoint(touchX, touchY);
-            if (highlight != null) {
-                isCrosshairActive = true;
-                chart.highlightValue(highlight);
-            }
-            return;
-        }
-
         activeCrosshairChart = chart;
         crosshairDragStartTouchX = touchX;
         crosshairDragStartTouchY = touchY;
@@ -868,9 +866,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         chart.setOnTouchListener((view, event) -> {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
-                crosshairDismissGesture = isCrosshairActive && !magnetMode;
+                crosshairDismissGesture = isCrosshairActive;
             }
-            if (action == MotionEvent.ACTION_DOWN && isCrosshairActive && !magnetMode) {
+            if (action == MotionEvent.ACTION_DOWN && isCrosshairActive) {
                 activeCrosshairChart = chart;
                 crosshairDragStartTouchX = event.getX();
                 crosshairDragStartTouchY = event.getY();
@@ -893,13 +891,17 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                         crosshairDragStartX + dx,
                         crosshairDragStartY + dy);
             } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                boolean dismissCrosshair = crosshairDismissGesture
+                boolean tapped = crosshairDismissGesture
                         && action == MotionEvent.ACTION_UP && !crosshairGestureMoved;
                 chart.setDragEnabled(true);
-                chart.setHighlightPerDragEnabled(magnetMode);
+                chart.setHighlightPerDragEnabled(false);
                 activeCrosshairChart = null;
                 crosshairDismissGesture = false;
-                if (dismissCrosshair) hideCrosshairInfo();
+                if (tapped) {
+                    // While drawing, a tap drops a point where the + is; otherwise it hides the +.
+                    if (drawMode != 0) placeDrawPointAtCrosshair();
+                    else hideCrosshairInfo();
+                }
             }
             // Consume the active free-crosshair gesture so the chart cannot snap it to a data point.
             return true;
@@ -923,6 +925,28 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         float dataX = Math.max(0f, Math.min((float) values.x, dateLabels.size() - 1f));
         float price = (float) values.y;
         com.github.mikephil.charting.utils.MPPointD.recycleInstance(values);
+        int snapIndex = Math.max(0, Math.min(Math.round(dataX), dateLabels.size() - 1));
+        if (magnetMode && snapIndex < currentEntries.size()) {
+            // Magnet: jump to the candle's centre and to its nearest open/high/low/close.
+            CandleEntry c = currentEntries.get(snapIndex);
+            float[] levels = isCandleStick
+                    ? new float[]{c.getOpen(), c.getHigh(), c.getLow(), c.getClose()}
+                    : new float[]{c.getClose()};
+            float best = levels[0];
+            for (float lv : levels) if (Math.abs(lv - price) < Math.abs(best - price)) best = lv;
+            price = best;
+            dataX = snapIndex;
+            com.github.mikephil.charting.utils.MPPointD px = chart.getTransformer(
+                    com.github.mikephil.charting.components.YAxis.AxisDependency.LEFT)
+                    .getPixelForValues(snapIndex, price);
+            x = Math.max(content.left, Math.min((float) px.x, content.right));
+            y = Math.max(content.top, Math.min((float) px.y, content.bottom));
+            com.github.mikephil.charting.utils.MPPointD.recycleInstance(px);
+            freeCrosshairX = x;
+            freeCrosshairY = y;
+        }
+        crosshairIndex = snapIndex;
+        crosshairValue = price;
 
         chart.highlightValue(null, false);
         if (freeCrosshairOverlay != null) {
@@ -969,6 +993,18 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         lp.setMargins(0, 0, 0, 0);
         chartContainer.setLayoutParams(lp);
         if (btnExitFullscreen != null) btnExitFullscreen.setVisibility(View.VISIBLE);
+        redrawAfterResize();
+    }
+
+    /** After the chart card changes size, rebuild panes + data so volume/indicators stay visible. */
+    private void redrawAfterResize() {
+        hideCrosshairInfo();
+        if (chartContainer == null) return;
+        chartContainer.post(() -> {
+            if (!isAdded()) return;
+            layoutPanes();
+            refreshCandlesSafely();
+        });
     }
 
     private void exitFullscreen() {
@@ -985,6 +1021,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         }
         if (headerSection   != null) headerSection.setVisibility(View.VISIBLE);
         if (btnExitFullscreen != null) btnExitFullscreen.setVisibility(View.GONE);
+        redrawAfterResize();
     }
 
     private int dpToPx(int dp) {
@@ -1056,7 +1093,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         candleStickChart.setDragDecelerationEnabled(true);
         candleStickChart.setDragDecelerationFrictionCoef(0.92f);
         candleStickChart.setHighlightPerTapEnabled(false);
-        candleStickChart.setHighlightPerDragEnabled(magnetMode);
+        candleStickChart.setHighlightPerDragEnabled(false);
         candleStickChart.setExtraTopOffset(4f);
         XAxis xAxis = candleStickChart.getXAxis();
         xAxis.setDrawGridLines(false);
@@ -1125,7 +1162,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         lineChart.setDragDecelerationEnabled(true);
         lineChart.setDragDecelerationFrictionCoef(0.92f);
         lineChart.setHighlightPerTapEnabled(false);
-        lineChart.setHighlightPerDragEnabled(magnetMode);
+        lineChart.setHighlightPerDragEnabled(false);
         lineChart.setExtraTopOffset(4f);
         XAxis xAxis = lineChart.getXAxis();
         xAxis.setDrawGridLines(false);
@@ -1179,13 +1216,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
 
         if (btnMagnetMode != null) {
             updateMagnetModeLabel();
-            btnMagnetMode.setOnClickListener(v -> {
-                magnetMode = !magnetMode;
-                if (candleStickChart != null) candleStickChart.setHighlightPerDragEnabled(magnetMode);
-                if (lineChart != null) lineChart.setHighlightPerDragEnabled(magnetMode);
-                if (!magnetMode) hideCrosshairInfo();
-                updateMagnetModeLabel();
-            });
+            btnMagnetMode.setOnClickListener(v -> toggleMagnet());
         }
 
         if (btnChartThemeToggle != null) {
@@ -1335,14 +1366,11 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 isCrosshairActive ? "At crosshair" : "Set alert", false,
                 (Runnable) () -> showChartAlertDialog(
                         isCrosshairActive ? crosshairPriceValue : lastPrice)});
-        tiles.add(new Object[]{"150", "150-day MA", showMa150 ? "On" : "Off", showMa150,
-                (Runnable) this::toggleMa150});
-        tiles.add(new Object[]{"\u25AE", "Volume", showVolume ? "On" : "Off", showVolume,
-                (Runnable) this::toggleVolume});
+        tiles.add(new Object[]{"\u271B", "Crosshair magnet", magnetMode ? "On" : "Off", magnetMode,
+                (Runnable) this::toggleMagnet});
+        tiles.add(new Object[]{"\u25AE", "Volume", volumeSummary(), showVolume,
+                (Runnable) this::showVolumeDialog});
         if (showVolume) {
-            tiles.add(new Object[]{"\u2195", "Volume place",
-                    volumeSeparate ? "Own pane" : "On price chart", volumeSeparate,
-                    (Runnable) this::toggleVolumePlacement});
             tiles.add(new Object[]{"\u25D0", "Volume colors",
                     volumeColorByOpen ? "By candle" : "By daily change", false,
                     (Runnable) this::toggleVolumeColorMode});
@@ -1399,18 +1427,47 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         refreshCandlesSafely();
     }
 
-    private void toggleVolumePlacement() {
-        volumeSeparate = !volumeSeparate;
-        requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit().putBoolean("chart_volume_separate", volumeSeparate).apply();
-        refreshCandlesSafely();
+    private String volumeSummary() {
+        if (!showVolume) return "Off";
+        return volumeSeparate || !isCandleStick ? "Own pane" : "On price chart";
     }
 
-    private void toggleVolume() {
-        showVolume = !showVolume;
+    /** Volume: off, in its own pane, or drawn on the price chart (candles only). */
+    private void showVolumeDialog() {
+        String[] items = {"No volume", "Own pane under the chart", "On the price chart (candles)"};
+        int current = !showVolume ? 0 : (volumeSeparate ? 1 : 2);
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Volume")
+                .setSingleChoiceItems(items, current, (dlg, which) -> {
+                    showVolume = which != 0;
+                    if (which != 0) volumeSeparate = which == 1;
+                    requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                            .putBoolean("chart_show_volume", showVolume)
+                            .putBoolean("chart_volume_separate", volumeSeparate).apply();
+                    dlg.dismiss();
+                    refreshCandlesSafely();
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void toggleMagnet() {
+        magnetMode = !magnetMode;
         requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit().putBoolean("chart_show_volume", showVolume).apply();
-        refreshCandlesSafely();
+                .edit().putBoolean("chart_magnet", magnetMode).apply();
+        updateMagnetModeLabel();
+        if (isCrosshairActive) {
+            com.github.mikephil.charting.charts.BarLineChartBase<?> chart = visiblePriceChart();
+            if (chart != null) updateFreeCrosshair(chart, freeCrosshairX, freeCrosshairY);
+        }
+        Toast.makeText(requireContext(), magnetMode
+                ? "Magnet on: the + snaps to open / high / low / close"
+                : "Magnet off: the + moves freely", Toast.LENGTH_SHORT).show();
+    }
+
+    private com.github.mikephil.charting.charts.BarLineChartBase<?> visiblePriceChart() {
+        return lineChart != null && lineChart.getVisibility() == View.VISIBLE
+                ? lineChart : candleStickChart;
     }
 
     private void refreshCandlesSafely() {
@@ -1480,7 +1537,26 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         int type;           // 1 = horizontal line, 2 = trend line, 3 = Fibonacci
         long t1, t2;
         float p1, p2;
+        int color;          // ARGB
+        float width;        // dp-ish line width as MPAndroidChart takes it
+        int style;          // 0 solid, 1 dashed, 2 dotted
     }
+
+    private static int defaultDrawingColor(int type) {
+        return type == 3 ? 0xFFFFA726 : 0xFFFFD54F;
+    }
+
+    private static float defaultDrawingWidth(int type) {
+        return type == 1 ? 1.2f : type == 2 ? 1.8f : 0.9f;
+    }
+
+    private static final int[] DRAWING_COLORS = {0xFFFFD54F, 0xFFFFA726, 0xFFEF5350, 0xFF66BB6A,
+            0xFF42A5F5, 0xFFAB47BC, 0xFFFFFFFF, 0xFF90A4AE};
+    private static final String[] DRAWING_COLOR_NAMES = {"Yellow", "Orange", "Red", "Green",
+            "Blue", "Purple", "White", "Grey"};
+    private static final float[] DRAWING_WIDTHS = {0.8f, 1.5f, 2.5f, 4f};
+    private static final String[] DRAWING_WIDTH_NAMES = {"Thin", "Normal", "Thick", "Extra thick"};
+    private static final String[] DRAWING_STYLE_NAMES = {"Solid", "Dashed", "Dotted"};
 
     private static final String DRAWINGS_PREFS = "chart_drawings";
 
@@ -1499,6 +1575,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 d.t2 = o.getLong("t2");
                 d.p1 = (float) o.getDouble("p1");
                 d.p2 = (float) o.getDouble("p2");
+                d.color = o.optInt("color", defaultDrawingColor(d.type));
+                d.width = (float) o.optDouble("width", defaultDrawingWidth(d.type));
+                d.style = o.optInt("style", 0);
                 out.add(d);
             }
         } catch (Exception e) {
@@ -1518,6 +1597,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 o.put("t2", d.t2);
                 o.put("p1", d.p1);
                 o.put("p2", d.p2);
+                o.put("color", d.color);
+                o.put("width", (double) d.width);
+                o.put("style", d.style);
                 arr.put(o);
             }
         } catch (Exception e) {
@@ -1597,8 +1679,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             pts.add(new Entry(ia, pa));
             pts.add(new Entry(n - 1, pa + slope * (n - 1 - ia)));
             LineDataSet t = new LineDataSet(pts, "");
-            t.setColor(0xFFFFD54F);
-            t.setLineWidth(1.8f);
+            t.setColor(d.color);
+            t.setLineWidth(d.width);
+            if (d.style == 1) t.enableDashedLine(14f, 8f, 0f);
+            else if (d.style == 2) t.enableDashedLine(3f, 6f, 0f);
             t.setDrawCircles(false);
             t.setDrawValues(false);
             t.setHighlightEnabled(false);
@@ -1608,10 +1692,16 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     }
 
     private void addLimit(YAxis axis, float price, String label, int color, float width) {
+        addLimit(axis, price, label, color, width, 0);
+    }
+
+    private void addLimit(YAxis axis, float price, String label, int color, float width, int style) {
         com.github.mikephil.charting.components.LimitLine ll =
                 new com.github.mikephil.charting.components.LimitLine(price, label);
         ll.setLineColor(color);
         ll.setLineWidth(width);
+        if (style == 1) ll.enableDashedLine(14f, 8f, 0f);
+        else if (style == 2) ll.enableDashedLine(3f, 6f, 0f);
         ll.setTextColor(color);
         ll.setTextSize(9f);
         ll.setLabelPosition(com.github.mikephil.charting.components.LimitLine.LimitLabelPosition.RIGHT_TOP);
@@ -1627,13 +1717,13 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         float[] fibLevels = {0f, 0.236f, 0.382f, 0.5f, 0.618f, 0.786f, 1f};
         for (Drawing d : loadDrawings()) {
             if (d.type == 1) {
-                addLimit(left, d.p1, formatPrice(d.p1, symbol), 0xFFFFD54F, 1.2f);
+                addLimit(left, d.p1, formatPrice(d.p1, symbol), d.color, d.width, d.style);
             } else if (d.type == 3) {
                 float hi = Math.max(d.p1, d.p2), lo = Math.min(d.p1, d.p2);
                 for (float r : fibLevels) {
                     float price = hi - (hi - lo) * r;
                     addLimit(left, price, String.format(Locale.US, "%.1f%%  %s", r * 100f,
-                            formatPrice(price, symbol)), 0xFFFFA726, 0.9f);
+                            formatPrice(price, symbol)), d.color, d.width, d.style);
                 }
             }
         }
@@ -1771,7 +1861,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                 && currentVolumes.size() == entries.size();
         float maxVolume = 0f;
         if (hasVolume) for (Float v : currentVolumes) maxVolume = Math.max(maxVolume, v);
-        if (!showVolume || !volumeSeparate || !hasVolume || maxVolume <= 0f) {
+        // A line chart can't hold bars, so its volume always goes in the pane.
+        boolean usePane = volumeSeparate || !isCandleStick;
+        if (!showVolume || !usePane || !hasVolume || maxVolume <= 0f) {
             setVolumePaneVisible(false);
             return;
         }
@@ -1923,20 +2015,21 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
 
     private String indicatorSummary() {
         int n = (indMa20 ? 1 : 0) + (indMa50 ? 1 : 0) + (indMa200 ? 1 : 0) + (indBoll ? 1 : 0)
-                + (indPane != 0 ? 1 : 0);
+                + (indPane != 0 ? 1 : 0) + (showMa150 ? 1 : 0);
         return n == 0 ? "None" : n + " on";
     }
 
     private void showIndicatorsDialog() {
-        String[] items = {"MA 20", "MA 50", "MA 200", "Bollinger Bands (20, 2)",
+        String[] items = {"MA 20", "MA 50", "MA 200", "MA 150 (daily)", "Bollinger Bands (20, 2)",
                 "RSI (14) - lower pane", "MACD (12, 26, 9) - lower pane"};
-        boolean[] checked = {indMa20, indMa50, indMa200, indBoll, indPane == 1, indPane == 2};
+        boolean[] checked = {indMa20, indMa50, indMa200, showMa150, indBoll,
+                indPane == 1, indPane == 2};
         new AlertDialog.Builder(requireContext())
                 .setTitle("Indicators")
                 .setMultiChoiceItems(items, checked, (dlg, which, isChecked) -> {
                     checked[which] = isChecked;
-                    if (isChecked && (which == 4 || which == 5)) {
-                        int other = which == 4 ? 5 : 4;
+                    if (isChecked && (which == 5 || which == 6)) {
+                        int other = which == 5 ? 6 : 5;
                         checked[other] = false;
                         ((AlertDialog) dlg).getListView().setItemChecked(other, false);
                     }
@@ -1945,15 +2038,17 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
                     indMa20 = checked[0];
                     indMa50 = checked[1];
                     indMa200 = checked[2];
-                    indBoll = checked[3];
-                    indPane = checked[4] ? 1 : (checked[5] ? 2 : 0);
+                    boolean wantMa150 = checked[3];
+                    indBoll = checked[4];
+                    indPane = checked[5] ? 1 : (checked[6] ? 2 : 0);
                     requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
                             .putBoolean("chart_ind_ma20", indMa20)
                             .putBoolean("chart_ind_ma50", indMa50)
                             .putBoolean("chart_ind_ma200", indMa200)
                             .putBoolean("chart_ind_boll", indBoll)
                             .putInt("chart_ind_pane", indPane).apply();
-                    refreshCurrentChart();
+                    if (wantMa150 != showMa150) toggleMa150(); // also redraws the chart
+                    else refreshCurrentChart();
                     if ((indMa50 || indMa200) && currentEntries.size() < 60) {
                         Toast.makeText(requireContext(), "Long averages need more candles - "
                                 + "pick a longer visible range or smaller candles",
@@ -1976,7 +2071,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         items.add("Horizontal line (support / resistance)");
         items.add("Trend line (2 points)");
         items.add("Fibonacci retracement (2 points)");
-        items.add("Manage / delete drawings");
+        items.add("Edit / delete drawings (or tap a line on the chart)");
         if (drawMode != 0) items.add("Cancel current drawing");
         new AlertDialog.Builder(requireContext())
                 .setTitle("Drawing tools")
@@ -1998,9 +2093,157 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         drawMode = mode;
         hasPendingPoint = false;
         hideCrosshairInfo();
+        // Show the + straight away in the middle of the chart: drag it to the spot, tap to place.
+        com.github.mikephil.charting.charts.BarLineChartBase<?> chart = visiblePriceChart();
+        if (chart != null) {
+            android.graphics.RectF c = chart.getViewPortHandler().getContentRect();
+            updateFreeCrosshair(chart, c.centerX(), c.centerY());
+        }
         Toast.makeText(requireContext(), mode == 1
-                ? "Tap the chart where the line should go"
-                : "Tap the chart to place the first point", Toast.LENGTH_LONG).show();
+                ? "Drag the + to the price, then tap to place the line"
+                : "Drag the + to the first point, then tap", Toast.LENGTH_LONG).show();
+    }
+
+    /** Drops a drawing point at the crosshair (magnet-snapped when the magnet is on). */
+    private void placeDrawPointAtCrosshair() {
+        if (drawMode == 0 || crosshairIndex < 0 || crosshairIndex >= currentTimestamps.size()) return;
+        long t = currentTimestamps.get(crosshairIndex);
+        float price = crosshairValue;
+        if (drawMode == 1) {
+            addDrawing(1, t, price, t, price);
+            return;
+        }
+        if (!hasPendingPoint) {
+            hasPendingPoint = true;
+            pendingT = t;
+            pendingP = price;
+            Toast.makeText(requireContext(), "Now drag the + to the second point and tap",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        addDrawing(drawMode, pendingT, pendingP, t, price);
+    }
+
+    // ---- selecting and editing a drawing ----
+
+    /** Index of the drawing near the touch point (in chart pixels), or -1. */
+    private int findDrawingAt(com.github.mikephil.charting.charts.BarLineChartBase<?> chart,
+                              float tx, float ty) {
+        List<Drawing> list = loadDrawings();
+        if (list.isEmpty() || currentEntries.isEmpty()) return -1;
+        com.github.mikephil.charting.utils.Transformer tr = chart.getTransformer(YAxis.AxisDependency.LEFT);
+        float tol = dpToPx(16);
+        int best = -1;
+        float bestDist = Float.MAX_VALUE;
+        int n = currentEntries.size();
+        float[] fibLevels = {0f, 0.236f, 0.382f, 0.5f, 0.618f, 0.786f, 1f};
+        for (int k = 0; k < list.size(); k++) {
+            Drawing d = list.get(k);
+            float dist = Float.MAX_VALUE;
+            if (d.type == 1) {
+                dist = Math.abs(ty - pixelY(tr, d.p1));
+            } else if (d.type == 3) {
+                float hi = Math.max(d.p1, d.p2), lo = Math.min(d.p1, d.p2);
+                for (float r : fibLevels) dist = Math.min(dist, Math.abs(ty - pixelY(tr, hi - (hi - lo) * r)));
+            } else if (d.type == 2) {
+                int i1 = timeToIndex(d.t1), i2 = timeToIndex(d.t2);
+                if (i1 < 0 || i2 < 0 || i1 == i2) continue;
+                float pa = d.p1, pb = d.p2;
+                int ia = i1, ib = i2;
+                if (ia > ib) { ia = i2; ib = i1; pa = d.p2; pb = d.p1; }
+                float slope = (pb - pa) / (ib - ia);
+                com.github.mikephil.charting.utils.MPPointD a = tr.getPixelForValues(ia, pa);
+                com.github.mikephil.charting.utils.MPPointD b =
+                        tr.getPixelForValues(n - 1, pa + slope * (n - 1 - ia));
+                dist = distToSegment(tx, ty, (float) a.x, (float) a.y, (float) b.x, (float) b.y);
+                com.github.mikephil.charting.utils.MPPointD.recycleInstance(a);
+                com.github.mikephil.charting.utils.MPPointD.recycleInstance(b);
+            }
+            if (dist <= tol && dist < bestDist) { bestDist = dist; best = k; }
+        }
+        return best;
+    }
+
+    private static float pixelY(com.github.mikephil.charting.utils.Transformer tr, float price) {
+        com.github.mikephil.charting.utils.MPPointD p = tr.getPixelForValues(0f, price);
+        float y = (float) p.y;
+        com.github.mikephil.charting.utils.MPPointD.recycleInstance(p);
+        return y;
+    }
+
+    static float distToSegment(float px, float py, float ax, float ay, float bx, float by) {
+        float dx = bx - ax, dy = by - ay;
+        float len2 = dx * dx + dy * dy;
+        float t = len2 == 0f ? 0f : Math.max(0f, Math.min(1f, ((px - ax) * dx + (py - ay) * dy) / len2));
+        float cx = ax + t * dx, cy = ay + t * dy;
+        return (float) Math.hypot(px - cx, py - cy);
+    }
+
+    private String drawingName(Drawing d) {
+        return d.type == 1 ? "Horizontal line @ " + formatPrice(d.p1, symbol)
+                : d.type == 2 ? "Trend line " + formatPrice(d.p1, symbol) + " \u2192 "
+                        + formatPrice(d.p2, symbol)
+                : "Fibonacci " + formatPrice(d.p1, symbol) + " \u2192 " + formatPrice(d.p2, symbol);
+    }
+
+    /** Edit menu for one drawing: colour, thickness, line style, delete. */
+    private void showDrawingEditor(int index) {
+        List<Drawing> list = loadDrawings();
+        if (index < 0 || index >= list.size()) return;
+        Drawing d = list.get(index);
+        String[] items = {"Color", "Thickness", "Line style (solid / dashed / dotted)", "Delete"};
+        new AlertDialog.Builder(requireContext())
+                .setTitle(drawingName(d))
+                .setItems(items, (dlg, which) -> {
+                    switch (which) {
+                        case 0: pickDrawingOption(index, "Color", DRAWING_COLOR_NAMES,
+                                indexOfColor(d.color), (x, i) -> x.color = DRAWING_COLORS[i]); break;
+                        case 1: pickDrawingOption(index, "Thickness", DRAWING_WIDTH_NAMES,
+                                indexOfWidth(d.width), (x, i) -> x.width = DRAWING_WIDTHS[i]); break;
+                        case 2: pickDrawingOption(index, "Line style", DRAWING_STYLE_NAMES,
+                                d.style, (x, i) -> x.style = i); break;
+                        default:
+                            list.remove(index);
+                            saveDrawings(list);
+                            refreshCurrentChart();
+                            Toast.makeText(requireContext(), "Drawing deleted", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private interface DrawingEdit { void apply(Drawing d, int choice); }
+
+    private void pickDrawingOption(int index, String title, String[] names, int current,
+                                   DrawingEdit edit) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle(title)
+                .setSingleChoiceItems(names, current, (dlg, which) -> {
+                    List<Drawing> list = loadDrawings();
+                    if (index < list.size()) {
+                        edit.apply(list.get(index), which);
+                        saveDrawings(list);
+                        refreshCurrentChart();
+                    }
+                    dlg.dismiss();
+                    showDrawingEditor(index);
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private static int indexOfColor(int color) {
+        for (int i = 0; i < DRAWING_COLORS.length; i++) if (DRAWING_COLORS[i] == color) return i;
+        return -1;
+    }
+
+    private static int indexOfWidth(float width) {
+        int best = 0;
+        for (int i = 1; i < DRAWING_WIDTHS.length; i++) {
+            if (Math.abs(DRAWING_WIDTHS[i] - width) < Math.abs(DRAWING_WIDTHS[best] - width)) best = i;
+        }
+        return best;
     }
 
     private void handleDrawTap(MotionEvent me) {
@@ -2032,10 +2275,14 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         List<Drawing> list = loadDrawings();
         Drawing d = new Drawing();
         d.type = type; d.t1 = t1; d.p1 = p1; d.t2 = t2; d.p2 = p2;
+        d.color = defaultDrawingColor(type);
+        d.width = defaultDrawingWidth(type);
+        d.style = 0;
         list.add(d);
         saveDrawings(list);
         drawMode = 0;
         hasPendingPoint = false;
+        hideCrosshairInfo();
         refreshCurrentChart();
         Toast.makeText(requireContext(), "Drawing saved for " + cleanDisplaySymbol(symbol),
                 Toast.LENGTH_SHORT).show();
@@ -2049,19 +2296,17 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         }
         List<String> items = new ArrayList<>();
         items.add("Delete ALL drawings");
-        for (Drawing d : list) {
-            String what = d.type == 1 ? "Horizontal line @ " + formatPrice(d.p1, symbol)
-                    : d.type == 2 ? "Trend line " + formatPrice(d.p1, symbol) + " \u2192 "
-                            + formatPrice(d.p2, symbol)
-                    : "Fibonacci " + formatPrice(d.p1, symbol) + " \u2192 " + formatPrice(d.p2, symbol);
-            items.add("Delete: " + what);
-        }
+        for (Drawing d : list) items.add(drawingName(d));
         new AlertDialog.Builder(requireContext())
                 .setTitle("Drawings - " + cleanDisplaySymbol(symbol))
                 .setItems(items.toArray(new String[0]), (dlg, which) -> {
-                    if (which == 0) list.clear(); else list.remove(which - 1);
-                    saveDrawings(list);
-                    refreshCurrentChart();
+                    if (which == 0) {
+                        list.clear();
+                        saveDrawings(list);
+                        refreshCurrentChart();
+                    } else {
+                        showDrawingEditor(which - 1);
+                    }
                 })
                 .setNegativeButton("Close", null)
                 .show();
