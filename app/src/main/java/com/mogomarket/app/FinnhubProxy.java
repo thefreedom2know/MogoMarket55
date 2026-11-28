@@ -30,12 +30,18 @@ import okhttp3.ResponseBody;
  * the API key on the server. The app builds normal Finnhub URLs without a token; this interceptor
  * turns them into a function call and hands back the JSON as if Finnhub had answered directly,
  * so the calling code does not change. Requests to any other host pass through untouched.
+ * If the function is not deployed or fails, quotes come from Yahoo instead
+ * ({@link YahooQuoteFallback}), so prices still load.
  */
 public final class FinnhubProxy implements Interceptor {
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private static final OkHttpClient CLIENT =
             new OkHttpClient.Builder().addInterceptor(new FinnhubProxy()).build();
+
+    private static final String QUOTE_PATH = "/api/v1/quote";
+    private static final long FUNCTION_RETRY_MS = 5 * 60 * 1000L;
+    private static volatile long functionDownUntil = 0L;
 
     private FinnhubProxy() {}
 
@@ -57,10 +63,64 @@ public final class FinnhubProxy implements Interceptor {
         if (!"finnhub.io".equals(url.host())) {
             return chain.proceed(request);
         }
+        boolean isQuote = QUOTE_PATH.equals(url.encodedPath());
+        // Quotes skip the server function while it is known to be failing, or when logged out.
+        if (isQuote && (!isAvailable() || functionRecentlyFailed())) {
+            Response backup = yahooQuote(request, url);
+            if (backup != null) return backup;
+        }
         if (!isAvailable()) {
             return respond(request, 401, "{\"error\":\"Log in to load quotes\"}");
         }
+        Response response;
+        try {
+            response = callFunction(request, url);
+        } catch (IOException e) {
+            if (Thread.currentThread().isInterrupted()) throw e;
+            markFunctionFailed();
+            if (isQuote) {
+                Response backup = yahooQuote(request, url);
+                if (backup != null) return backup;
+            }
+            throw e;
+        }
+        if (isQuote && (response.code() != 200 || hasNoPrice(response))) {
+            if (response.code() >= 500) markFunctionFailed();
+            Response backup = yahooQuote(request, url);
+            if (backup != null) {
+                response.close();
+                return backup;
+            }
+        }
+        return response;
+    }
 
+    /** True for a few minutes after the server function failed, so quotes go straight to Yahoo. */
+    private static boolean functionRecentlyFailed() {
+        return System.currentTimeMillis() < functionDownUntil;
+    }
+
+    private static void markFunctionFailed() {
+        functionDownUntil = System.currentTimeMillis() + FUNCTION_RETRY_MS;
+    }
+
+    /** Finnhub answers {"c":0,...} for symbols it does not cover (for example TASE shares). */
+    private static boolean hasNoPrice(Response response) {
+        try {
+            String body = response.peekBody(64 * 1024).string();
+            return !(new org.json.JSONObject(body).optDouble("c", 0) > 0);
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    /** The same quote from Yahoo, in Finnhub's format, or null if Yahoo has none either. */
+    private static Response yahooQuote(Request request, HttpUrl url) {
+        String json = YahooQuoteFallback.finnhubQuoteJson(url.queryParameter("symbol"));
+        return json == null ? null : respond(request, 200, json);
+    }
+
+    private static Response callFunction(Request request, HttpUrl url) throws IOException {
         Map<String, Object> params = new HashMap<>();
         for (String name : url.queryParameterNames()) {
             if (!"token".equals(name)) params.put(name, url.queryParameter(name));

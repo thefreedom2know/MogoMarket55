@@ -5,7 +5,7 @@ Anything inside an APK can be extracted, so with these functions the app ships w
 
 ## One-time setup
 
-Needs the Firebase **Blaze** plan (pay as you go; this usage is a few cents at most) and Node 20.
+Needs the Firebase **Blaze** plan (pay as you go; this usage is a few cents at most) and Node 22 (Node 20 was decommissioned by Google Cloud on 2026-10-30).
 
 ```bash
 npm install -g firebase-tools
