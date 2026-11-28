@@ -117,6 +117,11 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
                 v -> showPortfolioShareOptions());
         view.findViewById(R.id.btnIncomingShares).setOnClickListener(
                 v -> showIncomingTradeShares());
+        com.google.android.material.button.MaterialButton btnFunds = view.findViewById(R.id.btnFunds);
+        float fundsTotal = requireContext().getSharedPreferences(MainActivity.PREFS_NAME,
+                android.content.Context.MODE_PRIVATE).getFloat(FundsFragment.PREF_FUNDS_TOTAL_ILS, 0f);
+        if (fundsTotal > 0) btnFunds.setText("קופות " + FundsFragment.ilsShort(fundsTotal));
+        btnFunds.setOnClickListener(v -> Navigation.findNavController(v).navigate(R.id.fundsFragment));
         tvCash.setOnLongClickListener(v -> {
             showCashDialog();
             return true;
@@ -222,6 +227,9 @@ public class PortfolioFragment extends Fragment implements StocksAdapter.OnStock
             tvTotalInvested.setText(String.format(Locale.US, "$%,.2f", invested));
             tvCash.setText(String.format(Locale.US, "$%,.2f", cash));
             tvPortfolioValue.setText(String.format(Locale.US, "$%,.2f", portfolioValue));
+            // Lets the funds screen add the stocks to the total savings.
+            requireContext().getSharedPreferences(MainActivity.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                    .edit().putFloat(FundsFragment.PREF_PORTFOLIO_VALUE_USD, (float) portfolioValue).apply();
             updateAssetAllocationChart(allocation);
             if (largestPercent >= CONCENTRATION_ALERT_PERCENT) {
                 tvConcentrationAlert.setText(String.format(Locale.US,

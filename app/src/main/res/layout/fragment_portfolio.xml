@@ -143,6 +143,18 @@
                 android:textStyle="bold" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFunds"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingHorizontal="8dp"
+                android:text="קופות"
+                android:textColor="@color/pf_34d399"
+                android:textSize="11sp" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnIncomingShares"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
