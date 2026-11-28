@@ -267,6 +267,11 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private final List<Float> currentVolumes = new ArrayList<>();
     /** Highest volume bar on screen; volume-axis labels above it are hidden. */
     private float volumeAxisTop = 0f;
+    /** true = volume in its own pane under the price chart, false = bars inside the price chart. */
+    private boolean volumeSeparate;
+    private CombinedChart volumeChart;
+    private boolean volumePaneShown;
+    private TextView crosshairDetails;
     private List<Float> pendingVolumes = new ArrayList<>();
     private float lastPrice = 0f;
     private boolean isManualSelection = false;
@@ -380,6 +385,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         showMa150 = prefs.getBoolean("chart_show_ma150", false);
         showVolume = prefs.getBoolean("chart_show_volume", true);
         volumeColorByOpen = prefs.getBoolean("chart_volume_color_open", false);
+        volumeSeparate = prefs.getBoolean("chart_volume_separate", true);
         currentTFIndex = getTimeframeIndex(
                 prefs.getString(KEY_DEFAULT_TIMEFRAME, "1Y"));
         visibleChartRange = TIMEFRAMES[currentTFIndex][3];
@@ -424,6 +430,8 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         crosshairDate      = v.findViewById(R.id.crosshairDate);
         freeCrosshairOverlay = v.findViewById(R.id.freeCrosshairOverlay);
         indicatorChart = v.findViewById(R.id.indicator_chart);
+        volumeChart = v.findViewById(R.id.volume_chart);
+        crosshairDetails = v.findViewById(R.id.crosshairDetails);
         if (crosshairInfoBar != null) {
             crosshairInfoBar.setOnClickListener(x -> showChartAlertDialog(crosshairPriceValue));
         }
@@ -460,6 +468,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         setupClickListeners();
         setupChartGestures();
         setupIndicatorChartStyle();
+        setupVolumeChartStyle();
         v.post(() -> {
             if (candleStickChart == null) return;
             android.view.ViewTreeObserver vto = candleStickChart.getViewTreeObserver();
@@ -750,6 +759,27 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         }
     }
 
+    private void showCrosshairInfo(float price, int index) {
+        String date = index >= 0 && index < dateLabels.size() ? dateLabels.get(index) : "";
+        showCrosshairInfo(price, date);
+        if (crosshairDetails == null) return;
+        StringBuilder sb = new StringBuilder();
+        if (index >= 0 && index < currentEntries.size()) {
+            CandleEntry c = currentEntries.get(index);
+            sb.append("O ").append(formatPrice(c.getOpen(), symbol))
+              .append("  H ").append(formatPrice(c.getHigh(), symbol))
+              .append("\nL ").append(formatPrice(c.getLow(), symbol))
+              .append("  C ").append(formatPrice(c.getClose(), symbol));
+        }
+        if (showVolume && index >= 0 && index < currentVolumes.size()
+                && currentVolumes.size() == currentEntries.size()) {
+            if (sb.length() > 0) sb.append("\n");
+            sb.append("Vol ").append(formatVolume(Math.max(0f, currentVolumes.get(index))));
+        }
+        crosshairDetails.setText(sb);
+        crosshairDetails.setVisibility(sb.length() > 0 ? View.VISIBLE : View.GONE);
+    }
+
     private void showCrosshairInfo(float price, String date) {
         if (crosshairInfoBar == null) return;
         isCrosshairActive = true;
@@ -770,6 +800,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         if (crosshairInfoBar == null) return;
         isCrosshairActive = false;
         crosshairInfoBar.setVisibility(View.GONE);
+        if (crosshairDetails != null) crosshairDetails.setVisibility(View.GONE);
         if (freeCrosshairOverlay != null) freeCrosshairOverlay.hide();
         if (candleStickChart != null) candleStickChart.highlightValue(null);
         if (lineChart        != null) lineChart.highlightValue(null);
@@ -895,11 +926,24 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
 
         chart.highlightValue(null, false);
         if (freeCrosshairOverlay != null) {
-            freeCrosshairOverlay.showAt(x, y, content);
+            // The overlay covers the whole chart card while the chart itself starts lower
+            // (below the price header), so move the cross into the overlay's coordinates.
+            float dx = chart.getLeft() - freeCrosshairOverlay.getLeft();
+            float dy = chart.getTop() - freeCrosshairOverlay.getTop();
+            android.graphics.RectF shifted = new android.graphics.RectF(content);
+            shifted.offset(dx, dy);
+            float lineBottom = shifted.bottom;
+            for (CombinedChart pane : new CombinedChart[]{volumeChart, indicatorChart}) {
+                if (pane == null || pane.getVisibility() != View.VISIBLE) continue;
+                float paneBottom = pane.getTop() - freeCrosshairOverlay.getTop()
+                        + pane.getViewPortHandler().contentBottom();
+                lineBottom = Math.max(lineBottom, paneBottom);
+            }
+            freeCrosshairOverlay.showAt(x + dx, y + dy, shifted, lineBottom);
         }
         isCrosshairActive = true;
         int dateIndex = Math.max(0, Math.min(Math.round(dataX), dateLabels.size() - 1));
-        showCrosshairInfo(price, dateLabels.get(dateIndex));
+        showCrosshairInfo(price, dateIndex);
     }
 
     private void updateTickerButtonLabel() {
@@ -1296,6 +1340,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         tiles.add(new Object[]{"\u25AE", "Volume", showVolume ? "On" : "Off", showVolume,
                 (Runnable) this::toggleVolume});
         if (showVolume) {
+            tiles.add(new Object[]{"\u2195", "Volume place",
+                    volumeSeparate ? "Own pane" : "On price chart", volumeSeparate,
+                    (Runnable) this::toggleVolumePlacement});
             tiles.add(new Object[]{"\u25D0", "Volume colors",
                     volumeColorByOpen ? "By candle" : "By daily change", false,
                     (Runnable) this::toggleVolumeColorMode});
@@ -1352,6 +1399,13 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         refreshCandlesSafely();
     }
 
+    private void toggleVolumePlacement() {
+        volumeSeparate = !volumeSeparate;
+        requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean("chart_volume_separate", volumeSeparate).apply();
+        refreshCandlesSafely();
+    }
+
     private void toggleVolume() {
         showVolume = !showVolume;
         requireActivity().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -1360,9 +1414,10 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     }
 
     private void refreshCandlesSafely() {
-        if (currentEntries.isEmpty() || !isCandleStick) return;
+        if (currentEntries.isEmpty()) return;
         try {
-            updateCandleChart(currentEntries);
+            if (isCandleStick) updateCandleChart(currentEntries);
+            else updateLineChart(currentEntries);
         } catch (Exception e) {
             Log.e("ChartFragment", "Volume refresh failed", e);
             if (getContext() != null) {
@@ -1608,6 +1663,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             legend.setWordWrapEnabled(true);
         }
         updateIndicatorPane(entries);
+        updateVolumePane(entries);
     }
 
     private void setupIndicatorChartStyle() {
@@ -1636,26 +1692,118 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
     private void setIndicatorPaneVisible(boolean on) {
         if (indicatorChart == null || on == paneShown) return;
         paneShown = on;
-        int bottom = on ? dpToPx(118) : dpToPx(4);
-        for (View chart : new View[]{candleStickChart, lineChart}) {
-            if (chart == null) continue;
-            ViewGroup.LayoutParams lp = chart.getLayoutParams();
-            if (lp instanceof ViewGroup.MarginLayoutParams) {
-                ((ViewGroup.MarginLayoutParams) lp).bottomMargin = bottom;
-                chart.setLayoutParams(lp);
-            }
-        }
-        indicatorChart.setVisibility(on ? View.VISIBLE : View.GONE);
+        layoutPanes();
+    }
+
+    private void setVolumePaneVisible(boolean on) {
+        if (volumeChart == null || on == volumePaneShown) return;
+        volumePaneShown = on;
+        layoutPanes();
+    }
+
+    /**
+     * Stacks the lower panes under the price chart: indicator pane at the very bottom,
+     * the volume pane above it. All charts share the same left/right offsets so the
+     * candles, volume bars and indicator values line up.
+     */
+    private void layoutPanes() {
+        int gap = dpToPx(4);
+        int indH = dpToPx(110);
+        int volH = dpToPx(80);
+        int volumeBottom = gap + (paneShown ? indH + gap : 0);
+        int priceBottom = volumeBottom + (volumePaneShown ? volH + gap : 0);
+        setBottomMargin(candleStickChart, priceBottom);
+        setBottomMargin(lineChart, priceBottom);
+        setBottomMargin(volumeChart, volumeBottom);
+        if (indicatorChart != null) indicatorChart.setVisibility(paneShown ? View.VISIBLE : View.GONE);
+        if (volumeChart != null) volumeChart.setVisibility(volumePaneShown ? View.VISIBLE : View.GONE);
         float l = dpToPx(48), r = dpToPx(8);
-        if (on) {
+        if (paneShown || volumePaneShown) {
             if (candleStickChart != null) candleStickChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
             if (lineChart != null) lineChart.setViewPortOffsets(l, dpToPx(8), r, dpToPx(22));
-            indicatorChart.setViewPortOffsets(l, dpToPx(14), r, dpToPx(4));
+            if (indicatorChart != null) indicatorChart.setViewPortOffsets(l, dpToPx(14), r, dpToPx(4));
+            if (volumeChart != null) volumeChart.setViewPortOffsets(l, dpToPx(4), r, dpToPx(4));
         } else {
             if (candleStickChart != null) candleStickChart.resetViewPortOffsets();
             if (lineChart != null) lineChart.resetViewPortOffsets();
         }
         lastSyncScale = Float.NaN;
+    }
+
+    private void setBottomMargin(View view, int bottom) {
+        if (view == null) return;
+        ViewGroup.LayoutParams lp = view.getLayoutParams();
+        if (lp instanceof ViewGroup.MarginLayoutParams
+                && ((ViewGroup.MarginLayoutParams) lp).bottomMargin != bottom) {
+            ((ViewGroup.MarginLayoutParams) lp).bottomMargin = bottom;
+            view.setLayoutParams(lp);
+        }
+    }
+
+    private void setupVolumeChartStyle() {
+        if (volumeChart == null) return;
+        volumeChart.setTouchEnabled(false);
+        volumeChart.getDescription().setEnabled(false);
+        volumeChart.setDrawGridBackground(false);
+        volumeChart.getLegend().setEnabled(false);
+        volumeChart.getAxisRight().setEnabled(false);
+        XAxis x = volumeChart.getXAxis();
+        x.setDrawLabels(false);
+        x.setDrawGridLines(false);
+        x.setDrawAxisLine(false);
+        YAxis l = volumeChart.getAxisLeft();
+        l.setDrawGridLines(false);
+        l.setDrawAxisLine(false);
+        l.setTextSize(9f);
+        l.setAxisMinimum(0f);
+        l.setLabelCount(3, true);
+        l.setValueFormatter(new ValueFormatter() {
+            @Override public String getFormattedValue(float value) {
+                return value <= 0f ? "" : formatVolume(value);
+            }
+        });
+    }
+
+    /** Fills the separate volume pane, or hides it when volume is off or drawn on the price chart. */
+    private void updateVolumePane(List<CandleEntry> entries) {
+        if (volumeChart == null) return;
+        boolean hasVolume = entries != null && !entries.isEmpty()
+                && currentVolumes.size() == entries.size();
+        float maxVolume = 0f;
+        if (hasVolume) for (Float v : currentVolumes) maxVolume = Math.max(maxVolume, v);
+        if (!showVolume || !volumeSeparate || !hasVolume || maxVolume <= 0f) {
+            setVolumePaneVisible(false);
+            return;
+        }
+        List<BarEntry> bars = new ArrayList<>();
+        int[] colors = new int[entries.size()];
+        for (int i = 0; i < entries.size(); i++) {
+            bars.add(new BarEntry(entries.get(i).getX(), Math.max(0f, currentVolumes.get(i))));
+            colors[i] = volumeBarColor(entries, i, 0xB3000000);
+        }
+        BarDataSet set = new BarDataSet(bars, "Volume");
+        set.setColors(colors);
+        set.setDrawValues(false);
+        set.setHighlightEnabled(false);
+        BarData barData = new BarData(set);
+        barData.setBarWidth(0.8f);
+        CombinedData data = new CombinedData();
+        data.setData(barData);
+        setVolumePaneVisible(true);
+        volumeChart.getAxisLeft().setTextColor(isChartDark ? DARK_TEXT_SEC : LIGHT_TEXT_SEC);
+        volumeChart.getAxisLeft().setAxisMaximum(maxVolume * 1.05f);
+        volumeChart.getXAxis().setAxisMinimum(-0.5f);
+        volumeChart.getXAxis().setAxisMaximum(entries.size() - 0.5f);
+        volumeChart.setData(data);
+        lastSyncScale = Float.NaN;
+        volumeChart.invalidate();
+    }
+
+    private int volumeBarColor(List<CandleEntry> entries, int i, int alpha) {
+        float reference = volumeColorByOpen || i == 0
+                ? entries.get(i).getOpen() : entries.get(i - 1).getClose();
+        boolean up = entries.get(i).getClose() >= reference;
+        return ((up ? COLOR_GAIN : COLOR_LOSS) & 0x00FFFFFF) | alpha;
     }
 
     private void updateIndicatorPane(List<CandleEntry> entries) {
@@ -1738,7 +1886,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
 
     /** Keeps the lower pane zoomed/scrolled exactly like the price chart above it. */
     private void syncIndicatorViewport() {
-        if (indicatorChart == null || !paneShown || indicatorChart.getData() == null) return;
+        boolean ind = indicatorChart != null && paneShown && indicatorChart.getData() != null;
+        boolean vol = volumeChart != null && volumePaneShown && volumeChart.getData() != null;
+        if (!ind && !vol) return;
         com.github.mikephil.charting.charts.BarLineChartBase<?> src =
                 lineChart != null && lineChart.getVisibility() == View.VISIBLE
                         ? lineChart : candleStickChart;
@@ -1753,9 +1903,16 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         lastSyncTrans = tx;
         v[android.graphics.Matrix.MSCALE_Y] = 1f;
         v[android.graphics.Matrix.MTRANS_Y] = 0f;
-        android.graphics.Matrix copy = new android.graphics.Matrix();
-        copy.setValues(v);
-        indicatorChart.getViewPortHandler().refresh(copy, indicatorChart, true);
+        if (ind) {
+            android.graphics.Matrix copy = new android.graphics.Matrix();
+            copy.setValues(v);
+            indicatorChart.getViewPortHandler().refresh(copy, indicatorChart, true);
+        }
+        if (vol) {
+            android.graphics.Matrix copy = new android.graphics.Matrix();
+            copy.setValues(v);
+            volumeChart.getViewPortHandler().refresh(copy, volumeChart, true);
+        }
     }
 
     private void refreshCurrentChart() {
@@ -2260,9 +2417,9 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         TradingMarkerView mv = new TradingMarkerView(requireContext());
         mv.setDateLabels(dateLabels);
         mv.setChartView(chart);
-        mv.setOnHighlightListener((price, date) -> {
+        mv.setOnHighlightListener((price, index) -> {
             if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> showCrosshairInfo(price, date));
+                getActivity().runOnUiThread(() -> showCrosshairInfo(price, index));
             }
         });
         chart.setMarker(mv);
@@ -2303,17 +2460,15 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
             float v = hasVolume ? Math.max(0f, currentVolumes.get(i)) : 0f;
             maxVolume = Math.max(maxVolume, v);
             bars.add(new BarEntry(entries.get(i).getX(), v));
-            float reference = volumeColorByOpen || i == 0
-                    ? entries.get(i).getOpen() : entries.get(i - 1).getClose();
-            boolean up = entries.get(i).getClose() >= reference;
-            barColors[i] = ((up ? COLOR_GAIN : COLOR_LOSS) & 0x00FFFFFF) | 0x66000000;
+            barColors[i] = volumeBarColor(entries, i, 0x66000000);
         }
         if (bars.isEmpty()) bars.add(new BarEntry(0f, 0f));
         BarDataSet volumeSet = new BarDataSet(bars, "Volume");
         volumeSet.setColors(barColors);
         volumeSet.setDrawValues(false);
         volumeSet.setHighlightEnabled(false);
-        volumeSet.setVisible(showVolume && maxVolume > 0f);
+        boolean volumeOnPrice = showVolume && !volumeSeparate && maxVolume > 0f;
+        volumeSet.setVisible(volumeOnPrice);
         volumeSet.setAxisDependency(com.github.mikephil.charting.components.YAxis.AxisDependency.RIGHT);
         BarData barData = new BarData(volumeSet);
         barData.setBarWidth(0.8f);
@@ -2321,7 +2476,7 @@ public class ChartFragment extends Fragment implements TimeFrameFragment.TimeFra
         com.github.mikephil.charting.components.YAxis right = candleStickChart.getAxisRight();
         right.setAxisMinimum(0f);
         right.setAxisMaximum(maxVolume > 0f ? maxVolume * 4.5f : 1f); // bars use the bottom ~22%
-        boolean volumeVisible = showVolume && maxVolume > 0f;
+        boolean volumeVisible = volumeOnPrice;
         volumeAxisTop = volumeVisible ? maxVolume : 0f;
         right.setDrawLabels(volumeVisible);
         candleStickChart.setDrawOrder(!hasLines

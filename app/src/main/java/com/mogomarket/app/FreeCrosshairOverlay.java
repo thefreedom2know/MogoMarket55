@@ -17,6 +17,7 @@ public class FreeCrosshairOverlay extends View {
     private final RectF bounds = new RectF();
     private float x;
     private float y;
+    private float lineBottom;
     private boolean active;
 
     public FreeCrosshairOverlay(Context context) {
@@ -39,8 +40,17 @@ public class FreeCrosshairOverlay extends View {
     }
 
     public void showAt(float x, float y, RectF content) {
+        showAt(x, y, content, content.bottom);
+    }
+
+    /**
+     * @param content    price-chart area, in this view's coordinates (horizontal line + clamp)
+     * @param lineBottom where the vertical line ends, so it can run down through lower panes
+     */
+    public void showAt(float x, float y, RectF content, float lineBottom) {
         this.x = x;
         this.y = y;
+        this.lineBottom = Math.max(lineBottom, content.bottom);
         bounds.set(content);
         active = true;
         setVisibility(VISIBLE);
@@ -57,7 +67,7 @@ public class FreeCrosshairOverlay extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (!active) return;
-        canvas.drawLine(x, bounds.top, x, bounds.bottom, linePaint);
+        canvas.drawLine(x, bounds.top, x, lineBottom, linePaint);
         canvas.drawLine(bounds.left, y, bounds.right, y, linePaint);
         canvas.drawCircle(x, y, 4f * getResources().getDisplayMetrics().density, dotPaint);
     }
