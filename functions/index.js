@@ -32,6 +32,24 @@ const GROQ_MODELS = [
 ];
 const GEMINI_MODEL = "gemini-flash-latest";
 
+/**
+ * Value of a secret, or "" when it is unset or a placeholder. Every secret must exist for
+ * `firebase deploy` to succeed, so keys you don't use can be set to "none".
+ */
+function secretValue(secret) {
+  const v = String(secret.value() || "").trim();
+  return v === "" || v.toLowerCase() === "none" || v === "-" ? "" : v;
+}
+
+/** Gives back one use of a rate-limit bucket (used when the action itself failed). */
+async function refundRateLimit(uid, bucket) {
+  const ref = admin.database().ref(`rate-limits/${uid}/${bucket}`);
+  await ref.transaction((current) => {
+    if (!current || !current.n) return current;
+    return { ...current, n: current.n - 1 };
+  });
+}
+
 /** Fixed-window counter per user, stored in the Realtime Database (admin access only). */
 async function rateLimit(uid, bucket, max, windowMs) {
   const ref = admin.database().ref(`rate-limits/${uid}/${bucket}`);
@@ -113,8 +131,8 @@ exports.aiChat = onCall(
     await rateLimit(uid, "ai-minute", 12, 60 * 1000);
     await rateLimit(uid, "ai-day", 200, 24 * 60 * 60 * 1000);
 
-    const groq = GROQ_API_KEY.value();
-    const gemini = GEMINI_API_KEY.value();
+    const groq = secretValue(GROQ_API_KEY);
+    const gemini = secretValue(GEMINI_API_KEY);
     let lastError = "No AI key is configured on the server.";
     if (groq) {
       try {
@@ -157,24 +175,47 @@ exports.sendSummaryEmail = onCall(
     }
     if (!subject || !(html || text)) throw new HttpsError("invalid-argument", "Empty email.");
 
-    await rateLimit(uid, "mail-day", 6, 24 * 60 * 60 * 1000);
+    const smtpUser = secretValue(SMTP_EMAIL);
+    // Gmail shows app passwords in groups of 4 ("abcd efgh ..."): the spaces are not part of it.
+    const smtpPass = secretValue(SMTP_PASSWORD).replace(/\s+/g, "");
+    if (!smtpUser || !smtpPass) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Email is not set up on the server: set the SMTP_EMAIL and SMTP_PASSWORD secrets " +
+          "(see functions/README.md) and deploy again."
+      );
+    }
+
+    await rateLimit(uid, "mail-day", 10, 24 * 60 * 60 * 1000);
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
-      auth: { user: SMTP_EMAIL.value(), pass: SMTP_PASSWORD.value() },
+      auth: { user: smtpUser, pass: smtpPass },
     });
     try {
       await transporter.sendMail({
-        from: `"MogoMarket" <${SMTP_EMAIL.value()}>`,
+        from: `"MogoMarket" <${smtpUser}>`,
         to,
         subject,
         text,
         html,
       });
     } catch (e) {
-      throw new HttpsError("internal", "Sending failed: " + String(e.message || e));
+      // A failed send must not use up the daily limit, or fixing the setup and retrying
+      // would be blocked until tomorrow.
+      await refundRateLimit(uid, "mail-day").catch(() => {});
+      const msg = String(e.message || e);
+      if (e.code === "EAUTH" || /Invalid login|BadCredentials|Username and Password/i.test(msg)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Gmail refused the login. SMTP_PASSWORD must be a Gmail App Password " +
+            "(Google account > Security > 2-Step Verification > App passwords), " +
+            "not the normal Gmail password."
+        );
+      }
+      throw new HttpsError("internal", "Sending failed: " + msg);
     }
     return { ok: true };
   }
@@ -229,7 +270,7 @@ exports.finnhub = onCall(
 
     finnhubMemoryLimit(uid, 120);
 
-    const key = FINNHUB_KEY.value();
+    const key = secretValue(FINNHUB_KEY);
     if (!key) throw new HttpsError("failed-precondition", "No Finnhub key is configured on the server.");
     query.set("token", key);
     const res = await fetch(`https://finnhub.io${path}?${query.toString()}`);

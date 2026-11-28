@@ -15,14 +15,25 @@ cd functions && npm install && cd ..
 
 firebase functions:secrets:set FINNHUB_KEY
 firebase functions:secrets:set GROQ_API_KEY
-firebase functions:secrets:set GEMINI_API_KEY      # can be left empty
-firebase functions:secrets:set SMTP_EMAIL
-firebase functions:secrets:set SMTP_PASSWORD       # Gmail App Password
+firebase functions:secrets:set GEMINI_API_KEY      # type none if you don't use it
+firebase functions:secrets:set SMTP_EMAIL          # the Gmail address that sends the mail
+firebase functions:secrets:set SMTP_PASSWORD       # a Gmail App Password, not the normal password
 
 firebase deploy --only functions
 ```
 
 (Each `secrets:set` command asks you to paste the value - nothing is stored in the repo.)
+
+**All five secrets must exist, or `firebase deploy` fails for every function** (including the
+summary email). For a key you don't use, set the value `none`. An empty value is rejected.
+
+If pasting into the hidden prompt doesn't work (common in Windows PowerShell), create or update
+the secret in the browser instead: Google Cloud console > Security > Secret Manager >
+Create secret (or open the secret > + New version), then run `firebase deploy --only functions`.
+
+**Gmail App Password:** turn on 2-Step Verification for the sending Gmail account, then open
+Google account > Security > 2-Step Verification > App passwords, create one, and use those
+16 letters as `SMTP_PASSWORD` (spaces are fine). The normal Gmail password is refused by Gmail.
 
 ## What the app calls
 
@@ -33,7 +44,7 @@ Old `FINNHUB_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `SMTP_EMAIL` and `SMTP_PASS
 | App feature        | Function            | Limits (per user)                         |
 |--------------------|---------------------|-------------------------------------------|
 | AI chat / analysis | `aiChat`            | 12 / minute, 200 / day                    |
-| Daily summary mail | `sendSummaryEmail`  | 6 / day, only to the user's own address   |
+| Daily / weekly summary mail | `sendSummaryEmail` | 10 sent / day (failed tries don't count), only to the user's own address |
 | Quotes, search, company profile (Finnhub) | `finnhub` | 120 / minute; answers cached on the server |
 
 When the user is not logged in, quotes fall back to free Yahoo data.
