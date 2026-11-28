@@ -4,6 +4,7 @@ import android.content.Context;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.components.MarkerView;
+import com.github.mikephil.charting.data.CandleEntry;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.utils.MPPointF;
@@ -21,7 +22,8 @@ public class TradingMarkerView extends MarkerView {
 
     // Callback so ChartFragment can update the top-bar
     public interface OnHighlightListener {
-        void onHighlight(float price, String date);
+        /** price = the candle's close (line value for line charts), index = bar index. */
+        void onHighlight(float price, int index);
     }
 
     private OnHighlightListener listener;
@@ -41,10 +43,10 @@ public class TradingMarkerView extends MarkerView {
     @Override
     public void refreshContent(Entry e, Highlight highlight) {
         if (e != null && listener != null) {
-            int index = (int) e.getX();
-            String date = (dateLabels != null && index >= 0 && index < dateLabels.size())
-                    ? dateLabels.get(index) : "";
-            listener.onHighlight(e.getY(), date);
+            int index = Math.round(e.getX());
+            // CandleEntry.getY() is the middle of high/low, not a real price: use the close.
+            float price = e instanceof CandleEntry ? ((CandleEntry) e).getClose() : e.getY();
+            listener.onHighlight(price, index);
         }
         super.refreshContent(e, highlight);
     }
